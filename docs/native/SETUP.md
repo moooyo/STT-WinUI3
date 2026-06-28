@@ -78,22 +78,21 @@ export STT_ZIPFORMER_REF="AFTER EARLY NIGHTFALL THE YELLOW LAMPS WOULD LIGHT UP 
 # Family D (NeMo): a NeMo Conformer-CTC model (model.onnx + tokens.txt + test_wavs), e.g.
 # sherpa-onnx-nemo-ctc-en-conformer-medium:
 export STT_NEMO_DIR=/path/to/sherpa-onnx-nemo-ctc-en-conformer-medium
+# Family C (Whisper): a sherpa-onnx Whisper model ({prefix}-encoder.onnx/-decoder.onnx/-tokens.txt),
+# e.g. sherpa-onnx-whisper-tiny.en:
+export STT_WHISPER_DIR=/path/to/sherpa-onnx-whisper-tiny.en
 dotnet test tests/Stt.Core.Tests/Stt.Core.Tests.csproj
 ```
 
 This activates the native fbank test, the Silero VAD test, the **real end-to-end transcription
 test** (`SenseVoiceTranscriptionTests`) which decodes the model's bundled `test_wavs/zh.wav` +
 `en.wav` and asserts the expected text, the **streaming alignment test**
-(`StreamingTransducerTests`), and the **Family D NeMo test** (`NemoCtcTranscriptionTests`) which runs
-`NemoMelFrontend` → NeMo Conformer-CTC → CTC greedy. Verified locally: the offline chain (kaldi-fbank
-shim → SenseVoice int8 → text) produces `zh.wav → 开饭时间早上九点至下午五点` and `en.wav → the tribal
-chieftain called for the boy and presented him with fifty pieces of …`, the streaming Zipformer2
-transducer produces a transcript that is an **exact match** with the sherpa-onnx reference, and the
-NeMo Conformer-CTC produces `0.wav → after early nightfall the yellow lamps would light up here and
-there the squalid quarter of the brothels` (exact). Families **C** (Whisper, `WhisperMelFrontend`) and
-**D** (NeMo, `NemoMelFrontend`) extract via the extended knf shim; C is cross-checked against
-openai-whisper by the fbank golden test. Regenerate the golden vectors with
-`python scripts/gen_golden_features.py` (needs `numpy soundfile lhotse openai-whisper`).
+(`StreamingTransducerTests`), the **Family D NeMo test** (`NemoCtcTranscriptionTests`, runs through
+`OfflinePipelineBuilder` → `NemoMelFrontend` → NeMo Conformer-CTC), and the **Family C Whisper test**
+(`WhisperTranscriptionTests`, `WhisperMelFrontend` → Whisper encoder → greedy AR decoder). All four
+feature families are verified end-to-end against real models: the NeMo Conformer-CTC produces
+`0.wav → after early nightfall the yellow lamps would light up here and there the squalid quarter of
+the brothels` and Whisper-tiny.en produces the same with natural punctuation/casing — both exact.
 
 > The Zipformer2 metadata (`query_head_dims`/`value_head_dims`/`num_heads`) is required;
 > the older `model_type=zipformer` (v1) export (e.g. the 2023-02-20 bilingual model) uses a

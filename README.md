@@ -24,11 +24,12 @@ present: **131 passing, 0 skipped** (Core 124 + Pipeline 7) — every integratio
 lhotse, Whisper mel vs openai-whisper, VAD, offline transcription, streaming sherpa-alignment)
 runs and passes.
 
-**Feature families (spec §7).** Implemented front-ends: **A** kaldi-fbank Povey (icefall
-Zipformer/CTC), **B** kaldi-fbank + LFR + CMVN (FunASR Paraformer / SenseVoice), **C** Whisper
-log-mel 80/128 (OpenAI Whisper / Qwen audio), **D** NeMo librosa-mel + per-feature norm (NVIDIA
-Parakeet / Canary / GigaAM). All four extract via the native knf shim; C/D were verified against
-openai-whisper and the per-feature-norm contract respectively.
+**Feature families (spec §7).** Implemented front-ends, **all verified end-to-end against real
+models**: **A** kaldi-fbank Povey — icefall Zipformer2 (streaming, exact sherpa match), **B**
+kaldi-fbank + LFR + CMVN — FunASR SenseVoice (zh/en), **C** Whisper log-mel 80/128 — Whisper-tiny.en
+(exact transcript via encoder + greedy AR decoder), **D** NeMo librosa-mel + per-feature norm —
+NVIDIA NeMo Conformer-CTC (exact transcript, first-class via `OfflinePipelineBuilder`). All four
+extract via the native knf shim.
 
 | Phase | Scope | State |
 |---|---|---|
