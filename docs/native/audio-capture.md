@@ -1,7 +1,7 @@
 # Audio capture (WASAPI)
 
 `Stt.Audio.Windows.WasapiAudioCapture` is the real microphone source (spec §4). It is the only
-OS-bound audio dependency and is isolated in its own `net8.0-windows` project so `Stt.Core` stays
+OS-bound audio dependency and is isolated in its own `net10.0-windows` project so `Stt.Core` stays
 headless-testable (Core tests use `FileAudioCapture` instead).
 
 ## Behavior

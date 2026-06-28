@@ -48,17 +48,17 @@ public partial class SettingsViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(StreamingModelDescription))]
     private bool _hasStreamingModels;
 
-    /// <summary>SettingsCard description for the offline model picker — flips to a hint when none exist.</summary>
+    /// <summary>Setting-row description for the offline model picker — flips to a hint when none exist.</summary>
     public string OfflineModelDescription => HasOfflineModels
         ? "Re-decodes each segment for the final text (second pass)."
         : "No offline-capable models installed — import one on the Models page.";
 
-    /// <summary>SettingsCard description for the streaming model picker — flips to a hint when none exist.</summary>
+    /// <summary>Setting-row description for the streaming model picker — flips to a hint when none exist.</summary>
     public string StreamingModelDescription => HasStreamingModels
         ? "Produces live partial subtitles in one-pass-streaming / two-pass modes (first pass)."
         : "No streaming-capable models installed — import one on the Models page.";
 
-    /// <summary>SettingsCard description showing the currently selected VAD model path.</summary>
+    /// <summary>Setting-row description showing the currently selected VAD model path.</summary>
     public string VadModelDescription =>
         string.IsNullOrEmpty(VadModelPath) ? "No model selected." : VadModelPath;
 

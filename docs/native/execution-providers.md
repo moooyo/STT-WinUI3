@@ -12,6 +12,29 @@ provider package and surfaces real devices to `ExecutionProviderSelector` throug
 device enumerator. The Core logic (resolution, fallback, cache stamping, variant selection,
 fixed-shape, OS gating) is provider-agnostic and unit tested.
 
+## Runtime versions & the WinML double-load guard (current state)
+
+`Stt.Core` pins **`Microsoft.ML.OnnxRuntime` 1.27.0** (managed + native both 1.27.0; verified
+deployed). The optional `Stt.Plugins.WhisperGenAi` uses **`Microsoft.ML.OnnxRuntimeGenAI` 0.14.1**.
+
+Since the app moved to **Windows App SDK 2.2**, the SDK transitively pulls
+`Microsoft.WindowsAppSDK.ML` → `Microsoft.Windows.AI.MachineLearning` (WinML), which **bundles its
+own native `onnxruntime.dll` (ORT 1.24.6) + `DirectML.dll`** at the *same* `runtimes/<rid>/native/`
+path as `Microsoft.ML.OnnxRuntime`. The app does not (yet) use the WinML EP path, so to honor the
+§9 iron rule (never load two `onnxruntime.dll`) and keep ORT 1.27.0 the single deterministic owner,
+`Stt.App.csproj` excludes the WinML package's runtime/native assets:
+
+```xml
+<PackageReference Include="Microsoft.Windows.AI.MachineLearning" Version="2.1.70"
+                  ExcludeAssets="runtime;native" />
+```
+
+Result (verified): exactly **one** `onnxruntime.dll` (1.27.0) ships, ~20 MB of unused WinML/DirectML
+binaries are dropped, and the app still launches (the WinAppSDK bootstrap does not depend on WinML).
+**When the Phase 2/3 DirectML/NPU EP wiring below is actually implemented over Windows ML, remove
+this `ExcludeAssets`** (or switch the engine to `Microsoft.WindowsAppSDK.ML`) so exactly one ORT
+copy — the WinML one — owns `onnxruntime.dll`.
+
 ## What is implemented in Core (provider-agnostic, tested)
 
 - `EpResolver` — preference → device with CPU fallback (spec §9).

@@ -85,9 +85,11 @@ public sealed class WhisperGenAiDecoder : IAsrDecoder
 
         using var generatorParams = new GeneratorParams(model);
         generatorParams.SetSearchOption("max_length", _maxLength);
-        generatorParams.SetInputs(input);
 
         using var generator = new Generator(model, generatorParams);
+        // genai 0.9+ moved input binding off GeneratorParams onto the live Generator
+        // (GeneratorParams now carries only search options). See onnxruntime-genai 0.9.0 API change.
+        generator.SetInputs(input);
         var sb = new StringBuilder();
         while (!generator.IsDone())
         {

@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net8.0-windows</TargetFramework>
+    <TargetFramework>net10.0-windows</TargetFramework>
     <!-- Spec §4: isolates the only OS-bound audio dependency (WASAPI via NAudio). -->
     <UseWindowsForms>false</UseWindowsForms>
     <UseWPF>false</UseWPF>

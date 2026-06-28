@@ -4,7 +4,7 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:local="using:Stt.App.Views"
-    xmlns:controls="using:CommunityToolkit.WinUI.Controls"
+    xmlns:controls="using:Stt.App.Controls"
     xmlns:muxc="using:Microsoft.UI.Xaml.Controls"
     mc:Ignorable="d"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -15,62 +15,68 @@
 
             <TextBlock Text="Pipeline" Style="{StaticResource BodyStrongTextBlockStyle}" Margin="0,0,0,2" />
 
-            <controls:SettingsCard Header="Mode" Description="Number of recognition passes.">
+            <controls:SettingCard Header="Mode" Description="Number of recognition passes.">
                 <ComboBox MinWidth="240" AutomationProperties.AutomationId="ModeComboBox"
                           ItemsSource="{x:Bind ViewModel.Modes}"
                           SelectedItem="{x:Bind ViewModel.Mode, Mode=TwoWay}" />
-            </controls:SettingsCard>
+            </controls:SettingCard>
 
-            <controls:SettingsCard Header="Offline model (second pass)"
-                                   Description="{x:Bind ViewModel.OfflineModelDescription, Mode=OneWay}">
+            <controls:SettingCard Header="Offline model (second pass)"
+                                  Description="{x:Bind ViewModel.OfflineModelDescription, Mode=OneWay}">
                 <ComboBox MinWidth="280" AutomationProperties.AutomationId="OfflineModelComboBox"
                           ItemsSource="{x:Bind ViewModel.OfflineModels, Mode=OneWay}"
                           DisplayMemberPath="DisplayName" SelectedValuePath="Id"
                           SelectedValue="{x:Bind ViewModel.SecondPassModelId, Mode=TwoWay}" />
-            </controls:SettingsCard>
+            </controls:SettingCard>
 
-            <controls:SettingsCard Header="Streaming model (first pass)"
-                                   Description="{x:Bind ViewModel.StreamingModelDescription, Mode=OneWay}">
+            <controls:SettingCard Header="Streaming model (first pass)"
+                                  Description="{x:Bind ViewModel.StreamingModelDescription, Mode=OneWay}">
                 <ComboBox MinWidth="280" AutomationProperties.AutomationId="StreamingModelComboBox"
                           ItemsSource="{x:Bind ViewModel.StreamingModels, Mode=OneWay}"
                           DisplayMemberPath="DisplayName" SelectedValuePath="Id"
                           SelectedValue="{x:Bind ViewModel.FirstPassModelId, Mode=TwoWay}" />
-            </controls:SettingsCard>
+            </controls:SettingCard>
 
-            <controls:SettingsCard Header="Execution provider" Description="Where inference runs.">
+            <controls:SettingCard Header="Execution provider" Description="Where inference runs.">
                 <ComboBox MinWidth="240" AutomationProperties.AutomationId="ExecutionProviderComboBox"
                           ItemsSource="{x:Bind ViewModel.Providers}"
                           SelectedItem="{x:Bind ViewModel.Ep, Mode=TwoWay}" />
-            </controls:SettingsCard>
+            </controls:SettingCard>
 
             <TextBlock Text="Audio" Style="{StaticResource BodyStrongTextBlockStyle}" Margin="0,12,0,2" />
 
-            <controls:SettingsCard Header="Silero VAD model"
-                                   Description="{x:Bind ViewModel.VadModelDescription, Mode=OneWay}">
+            <controls:SettingCard Header="Silero VAD model"
+                                  Description="{x:Bind ViewModel.VadModelDescription, Mode=OneWay}">
                 <Button Content="Browse…" Click="BrowseVad_Click"
                         AutomationProperties.AutomationId="BrowseVadButton" />
-            </controls:SettingsCard>
+            </controls:SettingCard>
 
             <TextBlock Text="Endpointing" Style="{StaticResource BodyStrongTextBlockStyle}" Margin="0,12,0,2" />
 
-            <controls:SettingsExpander Header="Endpointing thresholds"
-                                       Description="Silence and duration rules that decide when a segment ends."
-                                       IsExpanded="True">
-                <controls:SettingsExpander.Items>
-                    <controls:SettingsCard Header="Min trailing silence"
-                                           Description="Seconds of trailing silence that close a segment.">
+            <muxc:Expander HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" IsExpanded="True">
+                <muxc:Expander.Header>
+                    <StackPanel Spacing="2" Padding="0,8">
+                        <TextBlock Text="Endpointing thresholds" Style="{StaticResource BodyTextBlockStyle}" />
+                        <TextBlock Text="Silence and duration rules that decide when a segment ends."
+                                   Style="{StaticResource CaptionTextBlockStyle}"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                    </StackPanel>
+                </muxc:Expander.Header>
+                <StackPanel Spacing="4" Padding="0,4">
+                    <controls:SettingCard Header="Min trailing silence"
+                                          Description="Seconds of trailing silence that close a segment.">
                         <muxc:NumberBox MinWidth="160" AutomationProperties.AutomationId="MinTrailingSilenceNumberBox"
                                         Value="{x:Bind ViewModel.MinTrailingSilenceSeconds, Mode=TwoWay}"
                                         SmallChange="0.1" SpinButtonPlacementMode="Inline" Minimum="0.3" Maximum="3" />
-                    </controls:SettingsCard>
-                    <controls:SettingsCard Header="Max utterance"
-                                           Description="Hard cap on a single segment's length, in seconds.">
+                    </controls:SettingCard>
+                    <controls:SettingCard Header="Max utterance"
+                                          Description="Hard cap on a single segment's length, in seconds.">
                         <muxc:NumberBox MinWidth="160" AutomationProperties.AutomationId="MaxUtteranceNumberBox"
                                         Value="{x:Bind ViewModel.MaxUtteranceSeconds, Mode=TwoWay}"
                                         SmallChange="1" SpinButtonPlacementMode="Inline" Minimum="2" Maximum="60" />
-                    </controls:SettingsCard>
-                </controls:SettingsExpander.Items>
-            </controls:SettingsExpander>
+                    </controls:SettingCard>
+                </StackPanel>
+            </muxc:Expander>
 
             <StackPanel Orientation="Horizontal" Spacing="12" Margin="0,16,0,0">
                 <Button Content="Save" Command="{x:Bind ViewModel.SaveCommand}"

@@ -2,7 +2,7 @@
 
 - **日期**: 2026-06-28
 - **状态**: Draft (待评审)
-- **目标平台**: Windows 桌面 (WinUI3 / Windows App SDK, .NET 8)
+- **目标平台**: Windows 桌面 (WinUI3 / Windows App SDK, .NET 8 → 已迁移至 **.NET 10 + Windows App SDK 2.2**，见 §4 基线)
 - **范围**: 完整的可插拔两遍 (two-pass) 本地语音转文字系统，运行时为裸 ONNX Runtime / Windows ML，跨硬件 (CPU / GPU / NPU)，多语言 (首要中英混读)。
 
 > 说明：本仓库目录名为 `tts-winui3`，但真实目标是**本地语音转文字 (STT)**，不是 TTS。
@@ -81,6 +81,8 @@ Stt.sln
 原生依赖 (`onnxruntime.dll`、`onnxruntime-genai`、`kaldi-native-fbank.dll`) 按 RID 放 `runtimes/win-x64|win-arm64/native`，发布时落到 exe 旁。
 
 **目标框架基线**：构建 TFM `net8.0-windows10.0.19041.0`；NPU/优化 EP 代码路径运行时门控在 build 26100 (24H2)，以下回退 DirectML/CPU。架构仅 x64 + ARM64 (ARM64 关乎 Copilot+ / Snapdragon NPU)。
+
+> **更新 (2026-06-28，实现后)**：应用户要求已整体迁移到 **.NET 10**——库/测试为 `net10.0`，`Stt.Audio.Windows` 为 `net10.0-windows`，`Stt.App` 为 `net10.0-windows10.0.19041.0` 并升级到 **Windows App SDK 2.2**（自 1.6）。CommunityToolkit `SettingsControls`（尚无 Windows App SDK 2.x 版本）已移除，改用原生 `SettingCard` + 内置 `Expander`；仅保留与 UI 框架无关的 `CommunityToolkit.Mvvm`。`TargetPlatformMinVersion`/运行时 26100 门控不变。
 
 ---
 

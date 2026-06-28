@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
     <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
     <RootNamespace>Stt.App</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
@@ -50,10 +50,23 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.6.*" />
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.2.0" />
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.*" />
-    <PackageReference Include="CommunityToolkit.WinUI.Controls.SettingsControls" Version="8.2.250402" />
-    <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.*" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.*" />
+  </ItemGroup>
+
+  <!--
+    Double-load guard (spec §9 / docs/native/execution-providers.md iron rule: never load two
+    onnxruntime.dll in one process). Windows App SDK 2.2 transitively pulls Microsoft.Windows.AI.
+    MachineLearning (WinML), which BUNDLES its own native onnxruntime.dll (ORT 1.24.6) + DirectML.dll
+    at the SAME runtimes/<rid>/native/ path as Microsoft.ML.OnnxRuntime (1.27.0, the engine this app
+    actually uses via Stt.Core). The app never calls Windows ML, so we suppress the WinML package's
+    runtime/native assets: this makes Microsoft.ML.OnnxRuntime the single, deterministic owner of
+    onnxruntime.dll (no version-skew, ~20 MB smaller output) instead of relying on MSBuild's
+    same-path collision tie-break. Re-enable these assets only if the app adopts the WinML EP.
+  -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Windows.AI.MachineLearning" Version="2.1.70" ExcludeAssets="runtime;native" />
   </ItemGroup>
 
   <ItemGroup>

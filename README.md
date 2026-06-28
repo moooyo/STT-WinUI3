@@ -43,13 +43,13 @@ Layered, one-directional `App → Core/Audio → Abstractions`:
 ```
 Stt.sln
 ├─ src/
-│  ├─ Stt.Abstractions   (net8.0)                interfaces + DTOs + enums, zero third-party deps
-│  ├─ Stt.Core           (net8.0)                engine: Audio, Features, Vad, Decoders, Ep, Models, Pipeline
-│  ├─ Stt.Audio.Windows  (net8.0-windows)        WASAPI capture (NAudio)
-│  └─ Stt.App            (net8.0-windows10.0.19041.0, WinUI3)  full-trust unpackaged app
+│  ├─ Stt.Abstractions   (net10.0)               interfaces + DTOs + enums, zero third-party deps
+│  ├─ Stt.Core           (net10.0)               engine: Audio, Features, Vad, Decoders, Ep, Models, Pipeline
+│  ├─ Stt.Audio.Windows  (net10.0-windows)       WASAPI capture (NAudio)
+│  └─ Stt.App            (net10.0-windows10.0.19041.0, WinUI3)  full-trust unpackaged app
 └─ tests/
-   ├─ Stt.Core.Tests     (net8.0, xUnit)         WAV → text, feature/decoder/validation units
-   └─ Stt.Pipeline.Tests (net8.0, xUnit)         channel backpressure, lifecycle, offline pipeline
+   ├─ Stt.Core.Tests     (net10.0, xUnit)        WAV → text, feature/decoder/validation units
+   └─ Stt.Pipeline.Tests (net10.0, xUnit)        channel backpressure, lifecycle, offline pipeline
 ```
 
 `Stt.Core` never references `Microsoft.UI.*`, so the full recognition chain is headless-testable:
@@ -57,8 +57,8 @@ Stt.sln
 
 ## Build & test
 
-Requires the **.NET SDK** (8.0+; this repo builds on .NET 10). The class libraries and tests are
-`net8.0` (AnyCPU); the app is `net8.0-windows10.0.19041.0` (x64 / ARM64).
+Requires the **.NET 10 SDK**. The class libraries and tests target `net10.0` (AnyCPU); the app is
+`net10.0-windows10.0.19041.0` (x64 / ARM64) on **Windows App SDK 2.2** (self-contained, unpackaged).
 
 ```bash
 # Headless engine + tests (cross-platform-ish; ONNX native is win/x64 at runtime)
@@ -88,7 +88,7 @@ auto-included when packaging is enabled, so the unpackaged path is untouched):
 ```powershell
 & "C:\Program Files\Microsoft Visual Studio\18\Community\MSBuild\Current\Bin\amd64\MSBuild.exe" `
   src\Stt.App\Stt.App.csproj -p:Platform=x64 -p:Configuration=Release -p:Packaged=true -restore
-# → bin\x64\Release\net8.0-windows10.0.19041.0\win-x64\AppPackages\...\Stt.App_1.0.0.0_x64.msix (unsigned)
+# → bin\x64\Release\net10.0-windows10.0.19041.0\win-x64\AppPackages\...\Stt.App_1.0.0.0_x64.msix (unsigned)
 ```
 
 This produces an **unsigned** `.msix`. To install it you must sign it with a trusted certificate —
