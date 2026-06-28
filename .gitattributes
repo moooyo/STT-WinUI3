@@ -1,0 +1,18 @@
+# Normalize line endings; let Git handle CRLF on checkout for Windows.
+* text=auto
+*.cs text
+*.csproj text
+*.sln text
+*.props text
+*.targets text
+*.json text
+*.xaml text
+*.md text
+# Binary assets must never be normalized.
+*.onnx binary
+*.npz binary
+*.bin binary
+*.dll binary
+*.so binary
+*.dylib binary
+*.wav binary
