@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <!-- Spec §4: isolates the only OS-bound audio dependency (WASAPI via NAudio). -->
+    <UseWindowsForms>false</UseWindowsForms>
+    <UseWPF>false</UseWPF>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="NAudio" Version="2.2.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Stt.Abstractions\Stt.Abstractions.csproj" />
+    <ProjectReference Include="..\Stt.Core\Stt.Core.csproj" />
+  </ItemGroup>
+
+</Project>

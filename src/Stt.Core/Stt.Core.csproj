@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <!-- LibraryImport (P/Invoke source generator) emits unsafe marshalling code. -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <!--
+      Spec §4: engine library. Depends on ORT + Channels; never references Microsoft.UI.*.
+      Headless-testable. The app may swap Microsoft.ML.OnnxRuntime for
+      Microsoft.WindowsAppSDK.ML at composition; all ORT usage is funneled through
+      SessionOptionsBuilder / IExecutionProviderSelector so the swap is isolated.
+    -->
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.20.1" />
+    <PackageReference Include="System.Threading.Channels" Version="8.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Stt.Abstractions\Stt.Abstractions.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Stt.Core.Tests" />
+    <InternalsVisibleTo Include="Stt.Pipeline.Tests" />
+  </ItemGroup>
+
+</Project>

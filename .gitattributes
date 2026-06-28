@@ -1,0 +1,12 @@
+# Normalize text files to LF in the repo and on checkout (stops CRLF churn/warnings).
+* text=auto eol=lf
+# Binary assets must never be normalized.
+*.onnx binary
+*.npz binary
+*.bin binary
+*.dll binary
+*.so binary
+*.dylib binary
+*.wav binary
+*.cer binary
+*.pfx binary
