@@ -60,6 +60,7 @@ public static class OfflinePipelineBuilder
         var decoder = new NarDecoder(runner, tokens, new NarDecoderOptions
         {
             QuerySlots = manifest.Family.Contains("sense", StringComparison.OrdinalIgnoreCase) ? 4 : 0,
+            Blank = DetectBlankId(tokens),
         });
 
         var vad = new SileroVad(vadModelPath, new VadOptions());
@@ -123,5 +124,16 @@ public static class OfflinePipelineBuilder
     {
         var fi = new FileInfo(path);
         return $"{Path.GetFileNameWithoutExtension(path)}-{fi.Length}";
+    }
+
+    /// <summary>
+    /// Resolve the CTC blank id from the token table: NeMo uses a trailing <c>&lt;blk&gt;</c> (id ==
+    /// vocab_size), FunASR/SenseVoice use id 0. Falls back to 0 when no blank token is named.
+    /// </summary>
+    private static int DetectBlankId(TokenTable tokens)
+    {
+        foreach (string p in new[] { "<blk>", "<blank>", "<pad>", "<eps>" })
+            if (tokens.TryId(p, out int id)) return id;
+        return 0;
     }
 }

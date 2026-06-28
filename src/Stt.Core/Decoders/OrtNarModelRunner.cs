@@ -43,8 +43,24 @@ public sealed class OrtNarModelRunner : IModelRunner, IDisposable
 
             if (rank == 3)
             {
-                inputs.Add(NamedOnnxValue.CreateFromTensor(
-                    name, new DenseTensor<float>(features, new[] { 1, numFrames, featDim })));
+                // Feature layout varies: SenseVoice/Paraformer use time-major [B, T, featDim];
+                // NeMo uses mel-major [B, n_mels, T] (the fixed middle dim equals featDim). Detect
+                // from the declared dims and transpose to mel-major when required.
+                bool melMajor = kv.Value.Dimensions[1] == featDim;
+                if (melMajor)
+                {
+                    var mm = new float[featDim * numFrames];
+                    for (int t = 0; t < numFrames; t++)
+                        for (int d = 0; d < featDim; d++)
+                            mm[d * numFrames + t] = features[t * featDim + d];
+                    inputs.Add(NamedOnnxValue.CreateFromTensor(
+                        name, new DenseTensor<float>(mm, new[] { 1, featDim, numFrames })));
+                }
+                else
+                {
+                    inputs.Add(NamedOnnxValue.CreateFromTensor(
+                        name, new DenseTensor<float>(features, new[] { 1, numFrames, featDim })));
+                }
             }
             else if (lower.Contains("len"))
             {
