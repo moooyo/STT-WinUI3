@@ -1,0 +1,60 @@
+# Build results
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+
+# Visual Studio / Rider
+.vs/
+.idea/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.userprefs
+
+# .NET
+project.lock.json
+project.fragment.lock.json
+artifacts/
+*.nupkg
+*.snupkg
+
+# WinUI / MSIX packaging
+AppPackages/
+BundleArtifacts/
+*.appx
+*.appxbundle
+*.msix
+*.msixbundle
+*.appxupload
+*.cer
+*.pfx
+GeneratedArtifacts/
+_pkginfo.txt
+
+# Test results
+[Tt]est[Rr]esult*/
+*.trx
+*.coverage
+*.coveragexml
+
+# OS
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.DS_Store
+
+# Model artifacts & caches (user-supplied / generated — never commit)
+*.onnx
+*.onnx_data
+*.bin
+*.npz
+mel_filters.npz
+models/
+*_ctx.onnx
+
+# Native libs are restored via NuGet/RID; do not commit binaries
+*.dll
+*.so
+*.dylib
