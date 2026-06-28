@@ -19,17 +19,23 @@ transducer) produces a transcript that is an **exact match** with the sherpa-onn
 (the spec §8.2 "align to sherpa before trusting" gate). GPU/NPU EP foundations and the optional
 Whisper plugin round out Phases 2–3. To run end-to-end you supply the native fbank shim + models
 (spec D7) — see [SETUP](docs/native/SETUP.md). Headless tests (no native/models): **116 passing,
-8 skipped**; with the shim + Silero VAD + SenseVoice + a streaming Zipformer2 + the golden vectors
-present: **131 passing, 0 skipped** (Core 124 + Pipeline 7) — every integration test (fbank vs
-lhotse, Whisper mel vs openai-whisper, VAD, offline transcription, streaming sherpa-alignment)
-runs and passes.
+~15 skipped**; with the shim + Silero VAD + SenseVoice + a streaming Zipformer2 + NeMo + Whisper +
+the golden vectors present: **138 passing, 0 skipped** (Core 131 + Pipeline 7) — every integration
+test (fbank vs lhotse, Whisper mel vs openai-whisper, VAD, offline/streaming/NeMo/Whisper
+transcription) runs and passes.
 
 **Feature families (spec §7).** Implemented front-ends, **all verified end-to-end against real
-models**: **A** kaldi-fbank Povey — icefall Zipformer2 (streaming, exact sherpa match), **B**
-kaldi-fbank + LFR + CMVN — FunASR SenseVoice (zh/en), **C** Whisper log-mel 80/128 — Whisper-tiny.en
-(exact transcript via encoder + greedy AR decoder), **D** NeMo librosa-mel + per-feature norm —
-NVIDIA NeMo Conformer-CTC (exact transcript, first-class via `OfflinePipelineBuilder`). All four
-extract via the native knf shim.
+models and first-class in the app**: **A** kaldi-fbank Povey — icefall Zipformer2 (streaming, exact
+sherpa match), **B** kaldi-fbank + LFR + CMVN — FunASR SenseVoice (zh/en), **C** Whisper log-mel
+80/128 — Whisper-tiny.en (exact transcript; `WhisperArDecoder` = encoder + greedy AR over bare ORT),
+**D** NeMo librosa-mel + per-feature norm — NVIDIA NeMo Conformer-CTC (exact transcript). All four
+extract via the native knf shim. Model import is metadata-driven, so dropping a Whisper or NeMo
+folder into **Models** auto-detects its family and makes it selectable in **Settings**.
+
+**Next steps (not yet done).** Real DirectML/NPU EP wiring (Phase 2/3 are foundations only — the
+"DirectML" EP currently falls back to CPU); a production WhisperArDecoder is in place but multilingual
+Whisper/Qwen large models are untested at scale; CI (GitHub Actions running the headless suite); and
+the older Zipformer **v1** streaming export (different state layout) is not yet supported.
 
 | Phase | Scope | State |
 |---|---|---|
