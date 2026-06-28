@@ -9,10 +9,10 @@ using Stt.Core.Pipeline;
 namespace Stt.App.Services;
 
 /// <summary>
-/// App-facing transcription orchestrator (spec §12). Builds and runs the OnePassOffline pipeline
-/// (Phase 0) from the selected models, surfacing <see cref="Partial"/>/<see cref="Final"/> events
-/// (already marshalled to the UI thread) and a "behind" indicator. Streaming/two-pass is added in
-/// Phase 1.
+/// App-facing transcription orchestrator (spec §12). Composes and runs the pipeline for the
+/// selected mode — OnePassOffline, OnePassStreaming, or TwoPass — surfacing
+/// <see cref="Partial"/>/<see cref="Final"/> events (already marshalled to the UI thread) and a
+/// "behind" indicator.
 /// </summary>
 public sealed class TranscriptionService
 {
@@ -21,7 +21,8 @@ public sealed class TranscriptionService
     private readonly IUiDispatcher _ui;
 
     private SttPipeline? _pipeline;
-    private OfflineChain? _chain;
+    private OfflineChain? _offline;
+    private StreamingChain? _streaming;
     private CancellationTokenSource? _cts;
 
     public TranscriptionService(IModelRegistry registry, IExecutionProviderSelector epSelector, IUiDispatcher ui)
@@ -37,22 +38,46 @@ public sealed class TranscriptionService
     public event Action<PartialResult>? Partial;
     public event Action<FinalResult>? Final;
 
-    /// <summary>Start OnePassOffline transcription using <paramref name="options"/>.</summary>
     public async Task StartAsync(SttOptions options)
     {
         if (IsRunning) return;
 
-        if (string.IsNullOrEmpty(options.SecondPassModelId))
-            throw new InvalidOperationException("Select an offline model first (Model Manager).");
         if (string.IsNullOrEmpty(options.VadModelPath) || !File.Exists(options.VadModelPath))
             throw new InvalidOperationException("A Silero VAD model (.onnx) is required. Set it in Settings.");
 
-        ModelManifest manifest = _registry.Get(options.SecondPassModelId);
-        _chain = OfflinePipelineBuilder.BuildOffline(manifest, options.VadModelPath, _epSelector, new EpPreference(options.Ep));
-
+        var vad = new Stt.Core.Vad.SileroVad(options.VadModelPath, new Stt.Core.Vad.VadOptions
+        {
+            MinSilenceDurationMs = (int)(options.MinTrailingSilenceSeconds * 1000),
+        });
         var capture = new WasapiAudioCapture();
+        var pref = new EpPreference(options.Ep);
+
+        bool needStreaming = options.Mode is PipelineMode.OnePassStreaming or PipelineMode.TwoPass;
+        bool needOffline = options.Mode is PipelineMode.OnePassOffline or PipelineMode.TwoPass;
+
+        if (needStreaming)
+        {
+            if (string.IsNullOrEmpty(options.FirstPassModelId))
+                throw new InvalidOperationException("Select a streaming first-pass model (Settings).");
+            var manifest = _registry.Get(options.FirstPassModelId);
+            _streaming = StreamingPipelineBuilder.BuildStreaming(manifest, _epSelector, pref, options.MinTrailingSilenceSeconds);
+        }
+
+        if (needOffline)
+        {
+            if (string.IsNullOrEmpty(options.SecondPassModelId))
+                throw new InvalidOperationException("Select an offline model (Settings).");
+            var manifest = _registry.Get(options.SecondPassModelId);
+            _offline = OfflinePipelineBuilder.BuildOffline(manifest, options.VadModelPath, _epSelector, pref);
+        }
+
         _pipeline = new SttPipeline(
-            options.ToPipelineConfig(), capture, _chain.Vad, _chain.Frontend, _chain.Decoder, _ui);
+            options.ToPipelineConfig(), capture, vad, _ui,
+            streamingFrontend: _streaming?.Frontend,
+            streamingDecoder: _streaming?.Decoder,
+            offlineFrontend: _offline?.Frontend,
+            offlineDecoder: _offline?.Decoder);
+
         _pipeline.Partial += OnPartial;
         _pipeline.Final += OnFinal;
 
@@ -69,9 +94,10 @@ public sealed class TranscriptionService
         _pipeline.Partial -= OnPartial;
         _pipeline.Final -= OnFinal;
         await _pipeline.DisposeAsync().ConfigureAwait(false);
-        _chain?.Dispose();
+        // The pipeline disposes the front-ends/decoders it owns; the chain records are now spent.
         _pipeline = null;
-        _chain = null;
+        _offline = null;
+        _streaming = null;
         IsRunning = false;
     }
 
