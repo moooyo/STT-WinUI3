@@ -72,6 +72,17 @@ def main():
     except Exception as e:  # pragma: no cover
         print("Family B skipped (set STT_FUNASR_CMVN to am.mvn):", e)
 
+    # Family C — OpenAI Whisper log-mel (80-bin). The reference: pad/trim to 30s -> log_mel_spectrogram
+    # -> [80, 3000], stored transposed to [3000, 80] to match Stt.Core's [T, dim] convention.
+    try:
+        import whisper  # openai-whisper
+        wav_audio = whisper.pad_or_trim(audio)
+        mel = whisper.log_mel_spectrogram(wav_audio, n_mels=80).numpy()  # [80, 3000]
+        write_bin("featsWhisper", np.ascontiguousarray(mel.T))
+        print("featsWhisper:", mel.T.shape)
+    except Exception as e:  # pragma: no cover
+        print("Family C skipped (pip install openai-whisper):", e)
+
 
 if __name__ == "__main__":
     main()

@@ -103,3 +103,21 @@ cmake --build build-x64 --config Release
 
 When the DLL is absent, `KaldiFbankFrontend.Extract` throws `DllNotFoundException` and the
 golden/feature tests skip (`KaldiNativeFbankInterop.IsAvailable == false`).
+
+## Extended shim — Families C and D
+
+The maintained shim source lives in [`native/shim/`](../../native/shim/) (`kaldi_native_fbank_shim.cc`
++ `CMakeLists.txt`); the snippet above is the original A/B version. The current shim wraps all knf
+online computers behind one polymorphic `IFeat` surface, so the same `knf_accept/finish/
+num_frames_ready/dim/get_frame/destroy` entry points drive three create functions:
+
+| Create | knf computer | Family |
+|---|---|---|
+| `knf_create(...)` | `OnlineFbank` (povey/HTK mel) | A / B |
+| `knf_mel_create(...)` | `OnlineFbank` with `is_librosa`/Slaney mel | D (NeMo / GigaAM) |
+| `knf_whisper_create(dim, sr)` | `OnlineWhisperFbank` | C (Whisper / Qwen), dim 80 or 128 |
+
+`knf_whisper_create` returns LINEAR mel energy; `WhisperMelFrontend` (C#) applies `log10` + Whisper's
+global dynamic-range normalize and pads/trims to the fixed 30 s (3000-frame) window. `knf_mel_create`
+output is consumed by `NemoMelFrontend`, which applies natural log + per-feature normalization.
+Rebuild after editing: `cmake -S native/shim -B build -A x64 && cmake --build build --config Release`.

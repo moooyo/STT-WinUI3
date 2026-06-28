@@ -49,6 +49,16 @@ public class FeatureFamilyDetectorTests
     }
 
     [Fact]
+    public void FireRedASR_Is_Not_Whisper()
+    {
+        // FireRedASR uses kaldi-fbank-80 + CMVN, NOT Whisper Slaney/30s log-mel — it must not
+        // route to Family C. A time-last 80-dim fbank model resolves to KaldiFbankPovey, never Whisper.
+        var fam = FeatureFamilyDetector.Detect(Probe("firered_aed", 80, FeatureLayout.TimeLast));
+        Assert.NotEqual(AsrFeatureFamily.WhisperLogMel, fam);
+        Assert.Equal(AsrFeatureFamily.KaldiFbankPovey, fam);
+    }
+
+    [Fact]
     public void Unknown_Refuses_To_Default()
     {
         // Unrecognized type, ambiguous dim, no usable layout → Auto (caller must ask).

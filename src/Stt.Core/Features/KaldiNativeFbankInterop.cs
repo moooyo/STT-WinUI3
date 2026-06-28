@@ -34,6 +34,23 @@ internal static partial class KaldiNativeFbankInterop
         int numBins, float sampleRate, float dither, int snipEdges, string windowType,
         float lowFreq, float highFreq, int usePower, int useLog, int normalizeSamples);
 
+    /// <summary>
+    /// Create a librosa/Slaney-mel fbank extractor (Family D, NeMo/GigaAM). Same handle ABI as
+    /// <see cref="knf_create"/>; the mel filterbank uses librosa's Slaney scale + norm.
+    /// </summary>
+    [LibraryImport(Lib, StringMarshalling = StringMarshalling.Utf8)]
+    internal static partial IntPtr knf_mel_create(
+        int numBins, float sampleRate, float dither, int snipEdges, string windowType,
+        float lowFreq, float highFreq, int usePower, int useLog);
+
+    /// <summary>
+    /// Create a Whisper log-mel extractor (Family C). <paramref name="dim"/> = 80 (≤ large-v2) or
+    /// 128 (large-v3). Output is LINEAR mel energy per frame; the caller applies log10 + Whisper's
+    /// global dynamic-range normalize. Same handle ABI as <see cref="knf_create"/>.
+    /// </summary>
+    [LibraryImport(Lib)]
+    internal static partial IntPtr knf_whisper_create(int dim, float sampleRate);
+
     [LibraryImport(Lib)]
     internal static partial void knf_accept(IntPtr handle, float sampleRate, [In] float[] samples, int count);
 

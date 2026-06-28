@@ -17,7 +17,9 @@ public static class FeatureFamilyDetector
         string mt = probe.ModelType.ToLowerInvariant();
 
         // 1. Whisper layout (fixed 3000 time axis) is unambiguous.
-        if (probe.Layout == FeatureLayout.MelMid || mt.Contains("whisper") || mt.Contains("dolphin") || mt.Contains("firered"))
+        //    NOTE: FireRedASR is NOT here — despite the name it uses kaldi-fbank-80 + global CMVN
+        //    (Conformer/LLM-AED), not Whisper's Slaney/30s log-mel, so it must not route to Family C.
+        if (probe.Layout == FeatureLayout.MelMid || mt.Contains("whisper") || mt.Contains("dolphin"))
             return AsrFeatureFamily.WhisperLogMel;
 
         // 2. FunASR family by the 560-dim arbiter or model type.

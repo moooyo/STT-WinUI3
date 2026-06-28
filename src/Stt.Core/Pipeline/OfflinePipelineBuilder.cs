@@ -92,6 +92,14 @@ public static class OfflinePipelineBuilder
             });
         }
 
+        // Family C — Whisper / Qwen log-mel (80 or 128 bins).
+        if (fam == AsrFeatureFamily.WhisperLogMel)
+            return new WhisperMelFrontend(manifest.Feature.FeatureDim);
+
+        // Family D — NeMo / GigaAM librosa-mel + per-feature norm.
+        if (fam == AsrFeatureFamily.NemoMel)
+            return new NemoMelFrontend(manifest.Feature.FeatureDim);
+
         // Family A default.
         return new KaldiFbankFrontend(FbankOptions.FamilyA(manifest.Feature.FeatureDim));
     }
