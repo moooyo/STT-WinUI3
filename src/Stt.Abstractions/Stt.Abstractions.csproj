@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <!-- Spec §4: zero third-party dependencies. Interfaces + DTOs + enums only. -->
+  </PropertyGroup>
+
+</Project>
