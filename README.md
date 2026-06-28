@@ -11,20 +11,22 @@ text.
 
 ## Status
 
-**Phases 0–3 are implemented and the offline path is verified end-to-end.** Phase 0 (offline
-single-pass) was run against the real **SenseVoice-Small** + **Silero VAD** models with a locally
-built kaldi-fbank shim, producing correct zh/en transcription (e.g. `zh.wav → 开饭时间早上九点至下午五点`,
-`en.wav → the tribal chieftain called for the boy and presented him with fifty pieces of …`).
-Phases 1–3 add streaming two-pass, GPU/NPU EP foundations, and the optional Whisper plugin. To run
-end-to-end you supply the native fbank shim + models (spec D7) — see [SETUP](docs/native/SETUP.md).
-Headless tests (no native/models): **117 passing, 6 skipped**; with the shim + Silero VAD +
-SenseVoice present: **121 passing, 2 skipped** (the 2 remaining skips need Python-generated golden
-vectors and a streaming Zipformer + sherpa reference).
+**Phases 0–3 are implemented and both recognition paths are verified against sherpa-onnx.** The
+**offline** path (SenseVoice-Small + Silero VAD, locally built kaldi-fbank shim) produces correct
+zh/en transcription (e.g. `zh.wav → 开饭时间早上九点至下午五点`, `en.wav → the tribal chieftain
+called for the boy and presented him with fifty pieces of …`). The **streaming** path (Zipformer2
+transducer) produces a transcript that is an **exact match** with the sherpa-onnx reference
+(the spec §8.2 "align to sherpa before trusting" gate). GPU/NPU EP foundations and the optional
+Whisper plugin round out Phases 2–3. To run end-to-end you supply the native fbank shim + models
+(spec D7) — see [SETUP](docs/native/SETUP.md). Headless tests (no native/models): **110 passing,
+6 skipped**; with the shim + Silero VAD + SenseVoice + a streaming Zipformer2 + the golden vectors
+present: **123 passing, 0 skipped** — every integration test (fbank vs lhotse, VAD, offline
+transcription, streaming sherpa-alignment) runs and passes.
 
 | Phase | Scope | State |
 |---|---|---|
 | 0 | mic → VAD → kaldi-fbank → SenseVoice (ORT) → text; infra; load validation; UI | ✅ implemented + verified |
-| 1 | streaming Zipformer transducer → two-pass; live partials | ✅ implemented (sherpa alignment test gated on a model) |
+| 1 | streaming Zipformer transducer → two-pass; live partials | ✅ implemented + verified (exact sherpa-onnx alignment) |
 | 2 | DirectML GPU — variant selection, fixed-shape, OS gating; app-side EP wiring | ✅ Core foundations + [docs](docs/native/execution-providers.md) |
 | 3 | NPU (QNN/OpenVINO/VitisAI) gating; optional Whisper-genai plugin | ✅ gating logic + `Stt.Plugins.WhisperGenAi` |
 

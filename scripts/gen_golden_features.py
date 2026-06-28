@@ -40,12 +40,18 @@ def main():
     import soundfile as sf
     audio = make_tone()
     sf.write(os.path.join(OUT, "input.wav"), audio, 16000, subtype="PCM_16")
+    # Read the PCM16 file back so the golden is computed from the SAME quantized signal the C#
+    # test sees (it loads input.wav). Extracting from the original float tone instead leaves the
+    # near-empty mel bins at the float floor, while C# sees PCM16 quantization noise there — a ~2 dB
+    # mismatch in empty bins for a pure tone. Reading back aligns both sides.
+    audio, _ = sf.read(os.path.join(OUT, "input.wav"), dtype="float32")
 
-    # Family A — lhotse kaldi-fbank Povey, 80-dim.
+    # Family A — lhotse kaldi-fbank Povey, 80-dim. Configured to match Stt.Core's FbankOptions.FamilyA
+    # (and sherpa-onnx): high_freq=0 (full Nyquist, NOT lhotse's -400 default), low_freq=20, dither=0.
     try:
         from lhotse import Fbank, FbankConfig
         from lhotse.features.kaldi.layers import Wav2LogFilterBank  # noqa: F401
-        fb = Fbank(FbankConfig(num_filters=80, snip_edges=False))
+        fb = Fbank(FbankConfig(num_filters=80, snip_edges=False, high_freq=0.0, low_freq=20.0, dither=0.0))
         featsA = fb.extract(audio, sampling_rate=16000)
         write_bin("featsA", np.asarray(featsA))
         print("featsA:", featsA.shape)

@@ -25,7 +25,9 @@ public static class EncoderStateFactory
             int keyDim = g.QueryHeadDims[e] * g.NumHeads[e];
             int valueDim = g.ValueHeadDims[e] * g.NumHeads[e];
             int nonlinDim = 3 * g.EncoderDims[e] / 4;
-            int convCache = g.CnnModuleKernels[e] - 1;
+            // Streaming conv cache width is kernel/2 (= (kernel-1)/2 for the odd kernels icefall
+            // uses), e.g. kernel 31 → 15, kernel 15 → 7 — verified against the sherpa-onnx export.
+            int convCache = g.CnnModuleKernels[e] / 2;
             int encDim = g.EncoderDims[e];
 
             for (int j = 0; j < layers; j++)

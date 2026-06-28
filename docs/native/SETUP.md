@@ -70,14 +70,27 @@ tests:
 # or in runtimes/win-x64/native). Then:
 export STT_SILERO_VAD=/path/to/silero_vad.onnx
 export STT_SENSEVOICE_DIR=/path/to/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17
+# Streaming Zipformer2 (icefall export with query_head_dims/value_head_dims metadata, e.g.
+# sherpa-onnx-streaming-zipformer-en-2023-06-26); set REF to assert an exact sherpa-onnx match:
+export STT_ZIPFORMER_DIR=/path/to/streaming-zipformer2   # encoder.onnx/decoder.onnx/joiner.onnx/tokens.txt
+export STT_ZIPFORMER_WAV=$STT_ZIPFORMER_DIR/test_wavs/0.wav
+export STT_ZIPFORMER_REF="AFTER EARLY NIGHTFALL THE YELLOW LAMPS WOULD LIGHT UP HERE AND THERE THE SQUALID QUARTER OF THE BROTHELS"
 dotnet test tests/Stt.Core.Tests/Stt.Core.Tests.csproj
 ```
 
-This activates the native fbank test, the Silero VAD test, and the **real end-to-end transcription
+This activates the native fbank test, the Silero VAD test, the **real end-to-end transcription
 test** (`SenseVoiceTranscriptionTests`) which decodes the model's bundled `test_wavs/zh.wav` +
-`en.wav` and asserts the expected text. Verified locally: the offline chain (kaldi-fbank shim →
-SenseVoice int8 → text) produces `zh.wav → 开饭时间早上九点至下午五点` and
-`en.wav → the tribal chieftain called for the boy and presented him with fifty pieces of …`.
+`en.wav` and asserts the expected text, and the **streaming alignment test**
+(`StreamingTransducerTests`). Verified locally: the offline chain (kaldi-fbank shim → SenseVoice
+int8 → text) produces `zh.wav → 开饭时间早上九点至下午五点` and `en.wav → the tribal chieftain called
+for the boy and presented him with fifty pieces of …`, and the streaming Zipformer2 transducer
+produces a transcript that is an **exact match** with the sherpa-onnx reference. The fbank golden
+test (`GoldenFeatureTests`) cross-checks the C# front-end against lhotse; regenerate its vectors
+with `python scripts/gen_golden_features.py` (needs `numpy soundfile lhotse`).
+
+> The Zipformer2 metadata (`query_head_dims`/`value_head_dims`/`num_heads`) is required;
+> the older `model_type=zipformer` (v1) export (e.g. the 2023-02-20 bilingual model) uses a
+> different state layout and is not yet supported.
 
 > The shim build in [kaldi-native-fbank.md](kaldi-native-fbank.md) is confirmed working with the
 > CMake + MSVC toolchain bundled in Visual Studio (cmake configure pulls in kissfft automatically).

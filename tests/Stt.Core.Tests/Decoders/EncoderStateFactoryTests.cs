@@ -37,13 +37,13 @@ public class EncoderStateFactoryTests
         var geo = ZipformerGeometry.FromMetadata(Meta);
         var specs = EncoderStateFactory.BuildSpecs(geo);
 
-        // encoder 0: L=64, keyDim=32*4=128, valueDim=12*4=48, nonlin=3*192/4=144, conv=31-1=30, encDim=192
+        // encoder 0: L=64, keyDim=32*4=128, valueDim=12*4=48, nonlin=3*192/4=144, conv=31/2=15, encDim=192
         Assert.Equal(new long[] { 64, 1, 128 }, specs[0].Shape);   // cached_key
         Assert.Equal(new long[] { 1, 1, 64, 144 }, specs[1].Shape); // cached_nonlin_attn
         Assert.Equal(new long[] { 64, 1, 48 }, specs[2].Shape);     // cached_val1
         Assert.Equal(new long[] { 64, 1, 48 }, specs[3].Shape);     // cached_val2
-        Assert.Equal(new long[] { 1, 192, 30 }, specs[4].Shape);    // cached_conv1
-        Assert.Equal(new long[] { 1, 192, 30 }, specs[5].Shape);    // cached_conv2
+        Assert.Equal(new long[] { 1, 192, 15 }, specs[4].Shape);    // cached_conv1 (sherpa: kernel/2)
+        Assert.Equal(new long[] { 1, 192, 15 }, specs[5].Shape);    // cached_conv2 (sherpa: kernel/2)
     }
 
     [Fact]
