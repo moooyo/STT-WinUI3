@@ -51,7 +51,9 @@ Desktop.ini
 *.bin
 *.npz
 mel_filters.npz
-models/
+# Runtime model store only — root-scoped so it does NOT match source directories like
+# src/Stt.Core/Models/ (git matches ignore patterns case-insensitively on Windows).
+/models/
 *_ctx.onnx
 
 # Native libs are restored via NuGet/RID; do not commit binaries
