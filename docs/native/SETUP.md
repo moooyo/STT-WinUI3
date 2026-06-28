@@ -66,7 +66,18 @@ Drop the native shim + models and set the test env vars to activate the skippabl
 tests:
 
 ```bash
+# Place kaldi_native_fbank_shim.dll on the loader path (next to Stt.Core.dll in the test output,
+# or in runtimes/win-x64/native). Then:
 export STT_SILERO_VAD=/path/to/silero_vad.onnx
-# (place kaldi_native_fbank_shim.dll on the loader path; add golden vectors per tests/golden/README.md)
+export STT_SENSEVOICE_DIR=/path/to/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17
 dotnet test tests/Stt.Core.Tests/Stt.Core.Tests.csproj
 ```
+
+This activates the native fbank test, the Silero VAD test, and the **real end-to-end transcription
+test** (`SenseVoiceTranscriptionTests`) which decodes the model's bundled `test_wavs/zh.wav` +
+`en.wav` and asserts the expected text. Verified locally: the offline chain (kaldi-fbank shim →
+SenseVoice int8 → text) produces `zh.wav → 开饭时间早上九点至下午五点` and
+`en.wav → the tribal chieftain called for the boy and presented him with fifty pieces of …`.
+
+> The shim build in [kaldi-native-fbank.md](kaldi-native-fbank.md) is confirmed working with the
+> CMake + MSVC toolchain bundled in Visual Studio (cmake configure pulls in kissfft automatically).

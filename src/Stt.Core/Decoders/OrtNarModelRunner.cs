@@ -48,18 +48,15 @@ public sealed class OrtNarModelRunner : IModelRunner, IDisposable
             }
             else if (lower.Contains("len"))
             {
-                inputs.Add(NamedOnnxValue.CreateFromTensor(
-                    name, new DenseTensor<int>(new[] { numFrames }, new[] { 1 })));
+                inputs.Add(MakeScalar(name, kv.Value, numFrames));
             }
             else if (lower.Contains("language") || lower == "lang")
             {
-                inputs.Add(NamedOnnxValue.CreateFromTensor(
-                    name, new DenseTensor<long>(new[] { _opts.LanguageId }, new[] { 1 })));
+                inputs.Add(MakeScalar(name, kv.Value, _opts.LanguageId));
             }
             else if (lower.Contains("textnorm") || lower.Contains("text_norm") || lower.Contains("itn"))
             {
-                inputs.Add(NamedOnnxValue.CreateFromTensor(
-                    name, new DenseTensor<long>(new[] { _opts.TextNormId }, new[] { 1 })));
+                inputs.Add(MakeScalar(name, kv.Value, _opts.TextNormId));
             }
         }
 
@@ -77,6 +74,19 @@ public sealed class OrtNarModelRunner : IModelRunner, IDisposable
         }
 
         throw new InvalidOperationException("NAR model produced no 3-D float logits output.");
+    }
+
+    /// <summary>
+    /// Build a length-1 scalar query input using the element type the model declares — SenseVoice
+    /// exports use Int32 for x_length/language/text_norm, others use Int64. Adapting to the metadata
+    /// avoids a "discovered Int64, expected Int32" type mismatch at Run.
+    /// </summary>
+    private static NamedOnnxValue MakeScalar(string name, NodeMetadata meta, long value)
+    {
+        var shape = new[] { 1 };
+        return meta.ElementDataType == TensorElementType.Int64
+            ? NamedOnnxValue.CreateFromTensor(name, new DenseTensor<long>(new[] { value }, shape))
+            : NamedOnnxValue.CreateFromTensor(name, new DenseTensor<int>(new[] { (int)value }, shape));
     }
 
     public void Dispose() => _session.Dispose();

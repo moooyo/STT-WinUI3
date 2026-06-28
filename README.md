@@ -11,11 +11,15 @@ text.
 
 ## Status
 
-**Phases 0–3 are implemented.** Phase 0 (offline single-pass) is a verified, runnable product;
+**Phases 0–3 are implemented and the offline path is verified end-to-end.** Phase 0 (offline
+single-pass) was run against the real **SenseVoice-Small** + **Silero VAD** models with a locally
+built kaldi-fbank shim, producing correct zh/en transcription (e.g. `zh.wav → 开饭时间早上九点至下午五点`,
+`en.wav → the tribal chieftain called for the boy and presented him with fifty pieces of …`).
 Phases 1–3 add streaming two-pass, GPU/NPU EP foundations, and the optional Whisper plugin. To run
 end-to-end you supply the native fbank shim + models (spec D7) — see [SETUP](docs/native/SETUP.md).
-Headless tests: **117 passing, 4 skipped** (the skips are integration tests that activate when
-native binaries/models are present).
+Headless tests (no native/models): **117 passing, 6 skipped**; with the shim + Silero VAD +
+SenseVoice present: **121 passing, 2 skipped** (the 2 remaining skips need Python-generated golden
+vectors and a streaming Zipformer + sherpa reference).
 
 | Phase | Scope | State |
 |---|---|---|
