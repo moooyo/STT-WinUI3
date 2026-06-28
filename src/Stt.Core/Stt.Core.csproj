@@ -2,6 +2,8 @@
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
+    <!-- LibraryImport (P/Invoke source generator) emits unsafe marshalling code. -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <!--
       Spec §4: engine library. Depends on ORT + Channels; never references Microsoft.UI.*.
       Headless-testable. The app may swap Microsoft.ML.OnnxRuntime for
@@ -17,6 +19,11 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Stt.Abstractions\Stt.Abstractions.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Stt.Core.Tests" />
+    <InternalsVisibleTo Include="Stt.Pipeline.Tests" />
   </ItemGroup>
 
 </Project>
