@@ -45,4 +45,18 @@ public static class SessionOptionsBuilder
         try { options.AddSessionConfigEntry(key, value); }
         catch { /* older ORT or unsupported key — cache simply not enabled */ }
     }
+
+    /// <summary>
+    /// Pin dynamic axes to fixed sizes (spec §9 iron rule: DirectML dynamic axes are ~5× slower).
+    /// Maps free-dimension names (e.g. <c>"T"</c>, <c>"N"</c>) to concrete values via ORT's
+    /// <c>AddFreeDimensionOverrideByName</c>. Apply before session creation.
+    /// </summary>
+    public static void ApplyFixedShapes(SessionOptions options, IReadOnlyDictionary<string, int> overrides)
+    {
+        foreach (var kv in overrides)
+        {
+            try { options.AddFreeDimensionOverrideByName(kv.Key, kv.Value); }
+            catch { /* dim name not present in this model — ignore */ }
+        }
+    }
 }

@@ -42,6 +42,8 @@ public static class OfflinePipelineBuilder
 
         string modelFile = manifest.Files.Model
             ?? throw new InvalidOperationException($"Offline model '{manifest.Id}' has no 'model' file in its manifest.");
+        // Pick the quantization variant best matching the EP (spec §9, Phase 2).
+        modelFile = ModelVariantSelector.SelectVariantFile(manifest.FolderPath, modelFile, epPreference.Kind);
         string modelPath = Path.Combine(manifest.FolderPath, modelFile);
         string tokensPath = Path.Combine(manifest.FolderPath, manifest.Files.Tokens
             ?? throw new InvalidOperationException("Offline model requires a tokens file."));
