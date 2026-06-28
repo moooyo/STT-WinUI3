@@ -11,17 +11,18 @@ text.
 
 ## Status
 
-**Phase 0 (offline single-pass + infrastructure) is implemented and verified.** You can speak a
-sentence and get Chinese–English mixed offline transcription (once you supply the native fbank
-shim + models — see [SETUP](docs/native/SETUP.md)). Headless tests: **75 passing**, plus skippable
-integration tests that activate when native binaries/models are present.
+**Phases 0–3 are implemented.** Phase 0 (offline single-pass) is a verified, runnable product;
+Phases 1–3 add streaming two-pass, GPU/NPU EP foundations, and the optional Whisper plugin. To run
+end-to-end you supply the native fbank shim + models (spec D7) — see [SETUP](docs/native/SETUP.md).
+Headless tests: **92 passing, 4 skipped** (the skips are integration tests that activate when
+native binaries/models are present).
 
 | Phase | Scope | State |
 |---|---|---|
-| 0 | mic → VAD → kaldi-fbank → SenseVoice (ORT) → text; infra; load validation; UI | ✅ implemented |
-| 1 | streaming Zipformer transducer → two-pass; live partials | ⏳ planned ([plan](docs/superpowers/plans/2026-06-28-local-stt-engine.md)) |
-| 2 | DirectML GPU | ⏳ planned |
-| 3 | NPU (QNN/OpenVINO/VitisAI); optional Whisper-genai plugin | ⏳ planned |
+| 0 | mic → VAD → kaldi-fbank → SenseVoice (ORT) → text; infra; load validation; UI | ✅ implemented + verified |
+| 1 | streaming Zipformer transducer → two-pass; live partials | ✅ implemented (sherpa alignment test gated on a model) |
+| 2 | DirectML GPU — variant selection, fixed-shape, OS gating; app-side EP wiring | ✅ Core foundations + [docs](docs/native/execution-providers.md) |
+| 3 | NPU (QNN/OpenVINO/VitisAI) gating; optional Whisper-genai plugin | ✅ gating logic + `Stt.Plugins.WhisperGenAi` |
 
 ## Architecture (spec §4, D5)
 
