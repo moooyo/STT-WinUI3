@@ -40,6 +40,12 @@ public static class OfflinePipelineBuilder
         if (manifest.FolderPath is null)
             throw new InvalidOperationException("Manifest has no folder path; import it via the registry first.");
 
+        // Whisper (Family C) is encoder+decoder autoregressive — a different shape from the
+        // single-graph NAR/CTC models below.
+        if (Enum.TryParse<AsrFeatureFamily>(manifest.Feature.Family, true, out var ff)
+            && ff == AsrFeatureFamily.WhisperLogMel)
+            return BuildWhisper(manifest, vadModelPath, epSelector, epPreference);
+
         string modelFile = manifest.Files.Model
             ?? throw new InvalidOperationException($"Offline model '{manifest.Id}' has no 'model' file in its manifest.");
         // Pick the quantization variant best matching the EP (spec §9, Phase 2).
@@ -65,6 +71,33 @@ public static class OfflinePipelineBuilder
 
         var vad = new SileroVad(vadModelPath, new VadOptions());
         return new OfflineChain(vad, frontend, decoder);
+    }
+
+    /// <summary>
+    /// Build a Whisper (Family C) offline chain: WhisperMelFrontend + encoder/decoder sessions wrapped
+    /// in a <see cref="WhisperArDecoder"/>. Whisper ships two graphs (encoder + decoder) and decodes
+    /// autoregressively, unlike the single-graph NAR/CTC path.
+    /// </summary>
+    private static OfflineChain BuildWhisper(
+        ModelManifest manifest, string vadModelPath,
+        IExecutionProviderSelector epSelector, EpPreference epPreference)
+    {
+        string folder = manifest.FolderPath!;
+        string encPath = Path.Combine(folder, manifest.Files.Encoder
+            ?? throw new InvalidOperationException("Whisper model requires an 'encoder' file."));
+        string decPath = Path.Combine(folder, manifest.Files.Decoder
+            ?? throw new InvalidOperationException("Whisper model requires a 'decoder' file."));
+        string tokensPath = Path.Combine(folder, manifest.Files.Tokens
+            ?? throw new InvalidOperationException("Whisper model requires a tokens file."));
+
+        var encoder = new InferenceSession(encPath, epSelector.BuildSessionOptions(epPreference, ComputeShortHash(encPath)));
+        var decoder = new InferenceSession(decPath, epSelector.BuildSessionOptions(epPreference, ComputeShortHash(decPath)));
+
+        var frontend = new WhisperMelFrontend(manifest.Feature.FeatureDim);
+        var config = WhisperConfig.FromMetadata(encoder.ModelMetadata.CustomMetadataMap);
+        var arDecoder = new WhisperArDecoder(encoder, decoder, config, WhisperArDecoder.LoadVocab(tokensPath));
+        var vad = new SileroVad(vadModelPath, new VadOptions());
+        return new OfflineChain(vad, frontend, arDecoder);
     }
 
     private static IFeatureFrontend BuildFrontend(ModelManifest manifest, InferenceSession session)
