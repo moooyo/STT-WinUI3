@@ -15,6 +15,9 @@ public sealed partial class SettingsPage : Page
         InitializeComponent();
     }
 
+    // x:Bind static helper for driving the save-confirmation InfoBar.
+    public static bool IsNonEmpty(string? value) => !string.IsNullOrWhiteSpace(value);
+
     private async void BrowseVad_Click(object sender, RoutedEventArgs e)
     {
         var picker = new FileOpenPicker();

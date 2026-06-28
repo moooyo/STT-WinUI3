@@ -5,6 +5,9 @@ using Stt.Core.Audio;
 
 namespace Stt.Audio.Windows;
 
+/// <summary>A capture endpoint for the UI device picker. An empty <see cref="Id"/> means "system default".</summary>
+public readonly record struct AudioCaptureDeviceInfo(string Id, string Name);
+
 /// <summary>
 /// WASAPI microphone capture (spec §4: the only OS-bound audio dependency, isolated here). Opens
 /// the default — or a selected — capture endpoint via NAudio, converts the device mix format to
@@ -39,6 +42,37 @@ public sealed class WasapiAudioCapture : IAudioCapture
     {
         using var enumerator = new MMDeviceEnumerator();
         return enumerator.EnumerateAudioEndPoints(DataFlow.Capture, DeviceState.Active).ToList();
+    }
+
+    /// <summary>
+    /// Enumerate capture endpoints as lightweight value records (id + friendly name) so the UI can
+    /// bind a picker without holding live COM <see cref="MMDevice"/> handles. Returns an empty list
+    /// if the audio subsystem is unavailable.
+    /// </summary>
+    public static IReadOnlyList<AudioCaptureDeviceInfo> EnumerateCaptureDeviceInfos()
+    {
+        var list = new List<AudioCaptureDeviceInfo>();
+        try
+        {
+            using var enumerator = new MMDeviceEnumerator();
+            foreach (var device in enumerator.EnumerateAudioEndPoints(DataFlow.Capture, DeviceState.Active))
+                using (device)
+                    list.Add(new AudioCaptureDeviceInfo(device.ID, device.FriendlyName));
+        }
+        catch { /* no audio subsystem / access denied → no selectable devices */ }
+        return list;
+    }
+
+    /// <summary>Resolve a capture endpoint by id, or null for the system default / unknown id.</summary>
+    public static MMDevice? GetDeviceById(string? id)
+    {
+        if (string.IsNullOrEmpty(id)) return null;
+        try
+        {
+            using var enumerator = new MMDeviceEnumerator();
+            return enumerator.GetDevice(id);
+        }
+        catch { return null; }
     }
 
     public Task StartAsync(CancellationToken ct)

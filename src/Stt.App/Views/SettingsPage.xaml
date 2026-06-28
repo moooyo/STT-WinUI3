@@ -3,69 +3,84 @@
     x:Class="Stt.App.Views.SettingsPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:Stt.App.Views"
+    xmlns:controls="using:CommunityToolkit.WinUI.Controls"
     xmlns:muxc="using:Microsoft.UI.Xaml.Controls"
     mc:Ignorable="d"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006">
 
-    <ScrollViewer Padding="16">
-        <StackPanel Spacing="16" MaxWidth="640" HorizontalAlignment="Left">
+    <ScrollViewer>
+        <StackPanel Padding="20" Spacing="4" MaxWidth="1000">
 
-            <TextBlock Text="Pipeline" Style="{StaticResource SubtitleTextBlockStyle}" />
+            <TextBlock Text="Pipeline" Style="{StaticResource BodyStrongTextBlockStyle}" Margin="0,0,0,2" />
 
-            <StackPanel Spacing="4">
-                <TextBlock Text="Mode" />
-                <ComboBox ItemsSource="{x:Bind ViewModel.Modes}" MinWidth="240"
+            <controls:SettingsCard Header="Mode" Description="Number of recognition passes.">
+                <ComboBox MinWidth="240" AutomationProperties.AutomationId="ModeComboBox"
+                          ItemsSource="{x:Bind ViewModel.Modes}"
                           SelectedItem="{x:Bind ViewModel.Mode, Mode=TwoWay}" />
-            </StackPanel>
+            </controls:SettingsCard>
 
-            <StackPanel Spacing="4">
-                <TextBlock Text="Offline model (second pass)" />
-                <ComboBox ItemsSource="{x:Bind ViewModel.OfflineModels, Mode=OneWay}" MinWidth="320"
+            <controls:SettingsCard Header="Offline model (second pass)"
+                                   Description="{x:Bind ViewModel.OfflineModelDescription, Mode=OneWay}">
+                <ComboBox MinWidth="280" AutomationProperties.AutomationId="OfflineModelComboBox"
+                          ItemsSource="{x:Bind ViewModel.OfflineModels, Mode=OneWay}"
                           DisplayMemberPath="DisplayName" SelectedValuePath="Id"
                           SelectedValue="{x:Bind ViewModel.SecondPassModelId, Mode=TwoWay}" />
-            </StackPanel>
+            </controls:SettingsCard>
 
-            <StackPanel Spacing="4">
-                <TextBlock Text="Streaming model (first pass — Phase 1)" />
-                <ComboBox ItemsSource="{x:Bind ViewModel.StreamingModels, Mode=OneWay}" MinWidth="320"
+            <controls:SettingsCard Header="Streaming model (first pass)"
+                                   Description="{x:Bind ViewModel.StreamingModelDescription, Mode=OneWay}">
+                <ComboBox MinWidth="280" AutomationProperties.AutomationId="StreamingModelComboBox"
+                          ItemsSource="{x:Bind ViewModel.StreamingModels, Mode=OneWay}"
                           DisplayMemberPath="DisplayName" SelectedValuePath="Id"
                           SelectedValue="{x:Bind ViewModel.FirstPassModelId, Mode=TwoWay}" />
-            </StackPanel>
+            </controls:SettingsCard>
 
-            <StackPanel Spacing="4">
-                <TextBlock Text="Execution provider" />
-                <ComboBox ItemsSource="{x:Bind ViewModel.Providers}" MinWidth="240"
+            <controls:SettingsCard Header="Execution provider" Description="Where inference runs.">
+                <ComboBox MinWidth="240" AutomationProperties.AutomationId="ExecutionProviderComboBox"
+                          ItemsSource="{x:Bind ViewModel.Providers}"
                           SelectedItem="{x:Bind ViewModel.Ep, Mode=TwoWay}" />
+            </controls:SettingsCard>
+
+            <TextBlock Text="Audio" Style="{StaticResource BodyStrongTextBlockStyle}" Margin="0,12,0,2" />
+
+            <controls:SettingsCard Header="Silero VAD model"
+                                   Description="{x:Bind ViewModel.VadModelDescription, Mode=OneWay}">
+                <Button Content="Browse…" Click="BrowseVad_Click"
+                        AutomationProperties.AutomationId="BrowseVadButton" />
+            </controls:SettingsCard>
+
+            <TextBlock Text="Endpointing" Style="{StaticResource BodyStrongTextBlockStyle}" Margin="0,12,0,2" />
+
+            <controls:SettingsExpander Header="Endpointing thresholds"
+                                       Description="Silence and duration rules that decide when a segment ends."
+                                       IsExpanded="True">
+                <controls:SettingsExpander.Items>
+                    <controls:SettingsCard Header="Min trailing silence"
+                                           Description="Seconds of trailing silence that close a segment.">
+                        <muxc:NumberBox MinWidth="160" AutomationProperties.AutomationId="MinTrailingSilenceNumberBox"
+                                        Value="{x:Bind ViewModel.MinTrailingSilenceSeconds, Mode=TwoWay}"
+                                        SmallChange="0.1" SpinButtonPlacementMode="Inline" Minimum="0.3" Maximum="3" />
+                    </controls:SettingsCard>
+                    <controls:SettingsCard Header="Max utterance"
+                                           Description="Hard cap on a single segment's length, in seconds.">
+                        <muxc:NumberBox MinWidth="160" AutomationProperties.AutomationId="MaxUtteranceNumberBox"
+                                        Value="{x:Bind ViewModel.MaxUtteranceSeconds, Mode=TwoWay}"
+                                        SmallChange="1" SpinButtonPlacementMode="Inline" Minimum="2" Maximum="60" />
+                    </controls:SettingsCard>
+                </controls:SettingsExpander.Items>
+            </controls:SettingsExpander>
+
+            <StackPanel Orientation="Horizontal" Spacing="12" Margin="0,16,0,0">
+                <Button Content="Save" Command="{x:Bind ViewModel.SaveCommand}"
+                        AutomationProperties.AutomationId="SaveSettingsButton"
+                        Style="{StaticResource AccentButtonStyle}" />
             </StackPanel>
 
-            <StackPanel Spacing="4">
-                <TextBlock Text="Silero VAD model (.onnx)" />
-                <StackPanel Orientation="Horizontal" Spacing="8">
-                    <TextBox Text="{x:Bind ViewModel.VadModelPath, Mode=OneWay}" MinWidth="360" IsReadOnly="True" />
-                    <Button Content="Browse…" Click="BrowseVad_Click" />
-                </StackPanel>
-            </StackPanel>
-
-            <TextBlock Text="Endpointing" Style="{StaticResource SubtitleTextBlockStyle}" />
-
-            <StackPanel Spacing="4">
-                <TextBlock Text="Min trailing silence (s)" />
-                <muxc:NumberBox Value="{x:Bind ViewModel.MinTrailingSilenceSeconds, Mode=TwoWay}"
-                                SmallChange="0.1" SpinButtonPlacementMode="Inline" Minimum="0.3" Maximum="3" />
-            </StackPanel>
-
-            <StackPanel Spacing="4">
-                <TextBlock Text="Max utterance (s)" />
-                <muxc:NumberBox Value="{x:Bind ViewModel.MaxUtteranceSeconds, Mode=TwoWay}"
-                                SmallChange="1" SpinButtonPlacementMode="Inline" Minimum="2" Maximum="60" />
-            </StackPanel>
-
-            <StackPanel Orientation="Horizontal" Spacing="8">
-                <Button Content="Save" Command="{x:Bind ViewModel.SaveCommand}" Style="{StaticResource AccentButtonStyle}" />
-                <TextBlock Text="{x:Bind ViewModel.Status, Mode=OneWay}" VerticalAlignment="Center"
-                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-            </StackPanel>
+            <muxc:InfoBar Severity="Success" IsClosable="True" Margin="0,4,0,0"
+                          Title="Saved" Message="{x:Bind ViewModel.Status, Mode=OneWay}"
+                          IsOpen="{x:Bind local:SettingsPage.IsNonEmpty(ViewModel.Status), Mode=OneWay}" />
         </StackPanel>
     </ScrollViewer>
 </Page>

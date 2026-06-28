@@ -21,9 +21,38 @@
     <NoWarn>$(NoWarn);MVVMTK0045</NoWarn>
   </PropertyGroup>
 
+  <!--
+    Opt-in MSIX packaging variant (spec §13 / decision D9). The default build stays UNPACKAGED
+    (WindowsPackageType=None above); pass -p:Packaged=true to produce an MSIX. Verified: with
+    Packaged unset the project evaluates AppxPackage=false (the entire MSIX import chain is dormant),
+    and -p:Packaged=true flips it to AppxPackage=true — the unpackaged default is untouched.
+  -->
+  <PropertyGroup Condition="'$(Packaged)' == 'true'">
+    <WindowsPackageType>MSIX</WindowsPackageType>
+    <EnableMsixTooling>true</EnableMsixTooling>
+    <GenerateAppxPackageOnBuild>true</GenerateAppxPackageOnBuild>
+    <AppxBundle>Never</AppxBundle>
+    <AppxPackageSigningEnabled>false</AppxPackageSigningEnabled>
+  </PropertyGroup>
+
+  <!-- Packaged-only: include the manifest's logo assets in the package. Inert in the unpackaged build. -->
+  <ItemGroup Condition="'$(Packaged)' == 'true'">
+    <Content Include="Assets\**\*.png" />
+  </ItemGroup>
+
+  <!-- Keep NAudio's WASAPI COM interop rooted if a packaged Release later enables trimming
+       (spec §17 risk: the trimmer can strip NAudio → microphone capture crash at runtime).
+       Inert unless PublishTrimmed=true. -->
+  <ItemGroup Condition="'$(Packaged)' == 'true'">
+    <TrimmerRootAssembly Include="NAudio" />
+    <TrimmerRootAssembly Include="NAudio.Core" />
+    <TrimmerRootAssembly Include="NAudio.Wasapi" />
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.6.*" />
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.*" />
+    <PackageReference Include="CommunityToolkit.WinUI.Controls.SettingsControls" Version="8.2.250402" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.*" />
   </ItemGroup>
 

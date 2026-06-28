@@ -31,10 +31,36 @@ public partial class SettingsViewModel : ObservableObject
     [ObservableProperty] private EpKind _ep;
     [ObservableProperty] private string? _secondPassModelId;
     [ObservableProperty] private string? _firstPassModelId;
-    [ObservableProperty] private string? _vadModelPath;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(VadModelDescription))]
+    private string? _vadModelPath;
+
     [ObservableProperty] private float _minTrailingSilenceSeconds;
     [ObservableProperty] private float _maxUtteranceSeconds;
     [ObservableProperty] private string _status = string.Empty;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(OfflineModelDescription))]
+    private bool _hasOfflineModels;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(StreamingModelDescription))]
+    private bool _hasStreamingModels;
+
+    /// <summary>SettingsCard description for the offline model picker — flips to a hint when none exist.</summary>
+    public string OfflineModelDescription => HasOfflineModels
+        ? "Re-decodes each segment for the final text (second pass)."
+        : "No offline-capable models installed — import one on the Models page.";
+
+    /// <summary>SettingsCard description for the streaming model picker — flips to a hint when none exist.</summary>
+    public string StreamingModelDescription => HasStreamingModels
+        ? "Produces live partial subtitles in one-pass-streaming / two-pass modes (first pass)."
+        : "No streaming-capable models installed — import one on the Models page.";
+
+    /// <summary>SettingsCard description showing the currently selected VAD model path.</summary>
+    public string VadModelDescription =>
+        string.IsNullOrEmpty(VadModelPath) ? "No model selected." : VadModelPath;
 
     public SettingsViewModel(IModelRegistry registry, SttOptions options)
     {
@@ -62,6 +88,8 @@ public partial class SettingsViewModel : ObservableObject
             if (vm.Offline) OfflineModels.Add(vm);
             if (vm.Streaming) StreamingModels.Add(vm);
         }
+        HasOfflineModels = OfflineModels.Count > 0;
+        HasStreamingModels = StreamingModels.Count > 0;
     }
 
     /// <summary>Set the VAD model path (called from the page after a FileOpenPicker).</summary>

@@ -6,28 +6,51 @@
     xmlns:views="using:Stt.App.Views"
     xmlns:muxc="using:Microsoft.UI.Xaml.Controls">
 
+    <!-- Mica gives the window the Fluent layered backdrop; the title bar is extended into the
+         client area (see code-behind) so the app chrome reads as one continuous surface. -->
+    <Window.SystemBackdrop>
+        <MicaBackdrop />
+    </Window.SystemBackdrop>
+
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <TextBlock Grid.Row="0" Text="Local STT" Margin="16,12"
-                   Style="{StaticResource SubtitleTextBlockStyle}" />
+        <!-- Custom, draggable title bar (set via SetTitleBar in code-behind). -->
+        <Grid x:Name="AppTitleBar" Grid.Row="0" Height="40" Padding="16,0" ColumnSpacing="12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <FontIcon Grid.Column="0" Glyph="&#xE720;" FontSize="16" VerticalAlignment="Center"
+                      Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+            <TextBlock Grid.Column="1" x:Name="AppTitleText" Text="Local STT"
+                       VerticalAlignment="Center" Style="{StaticResource CaptionTextBlockStyle}" />
+        </Grid>
 
         <muxc:NavigationView x:Name="Nav" Grid.Row="1"
                              IsBackButtonVisible="Collapsed"
                              IsSettingsVisible="False"
-                             PaneDisplayMode="Left"
+                             PaneDisplayMode="Auto"
+                             Header="Transcribe"
+                             IsTitleBarAutoPaddingEnabled="False"
                              SelectionChanged="Nav_SelectionChanged">
             <muxc:NavigationView.MenuItems>
-                <muxc:NavigationViewItem Content="Transcribe" Tag="main" IsSelected="True">
+                <muxc:NavigationViewItem Content="Transcribe" Tag="main" IsSelected="True"
+                                         AutomationProperties.AutomationId="NavTranscribe"
+                                         ToolTipService.ToolTip="Live transcription">
                     <muxc:NavigationViewItem.Icon><SymbolIcon Symbol="Microphone" /></muxc:NavigationViewItem.Icon>
                 </muxc:NavigationViewItem>
-                <muxc:NavigationViewItem Content="Models" Tag="models">
+                <muxc:NavigationViewItem Content="Models" Tag="models"
+                                         AutomationProperties.AutomationId="NavModels"
+                                         ToolTipService.ToolTip="Installed models and import">
                     <muxc:NavigationViewItem.Icon><SymbolIcon Symbol="Library" /></muxc:NavigationViewItem.Icon>
                 </muxc:NavigationViewItem>
-                <muxc:NavigationViewItem Content="Settings" Tag="settings">
+                <muxc:NavigationViewItem Content="Settings" Tag="settings"
+                                         AutomationProperties.AutomationId="NavSettings"
+                                         ToolTipService.ToolTip="Pipeline and engine settings">
                     <muxc:NavigationViewItem.Icon><SymbolIcon Symbol="Setting" /></muxc:NavigationViewItem.Icon>
                 </muxc:NavigationViewItem>
             </muxc:NavigationView.MenuItems>

@@ -38,7 +38,7 @@ public sealed class TranscriptionService
     public event Action<PartialResult>? Partial;
     public event Action<FinalResult>? Final;
 
-    public async Task StartAsync(SttOptions options)
+    public async Task StartAsync(SttOptions options, string? captureDeviceId = null)
     {
         if (IsRunning) return;
 
@@ -49,7 +49,7 @@ public sealed class TranscriptionService
         {
             MinSilenceDurationMs = (int)(options.MinTrailingSilenceSeconds * 1000),
         });
-        var capture = new WasapiAudioCapture();
+        var capture = new WasapiAudioCapture(WasapiAudioCapture.GetDeviceById(captureDeviceId));
         var pref = new EpPreference(options.Ep);
 
         bool needStreaming = options.Mode is PipelineMode.OnePassStreaming or PipelineMode.TwoPass;

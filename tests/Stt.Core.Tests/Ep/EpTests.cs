@@ -82,6 +82,36 @@ public class EpResolverTests
         var res = EpResolver.Resolve(new EpPreference(EpKind.Cpu), new[] { EpDeviceInfo.Cpu });
         Assert.False(res.FellBackToCpu);
     }
+
+    [Fact]
+    public void Auto_Preference_Resolves_To_Cpu_Without_Fallback()
+    {
+        // EpPreference.Auto == (Cpu, AllowFallbackToCpu:true): a CPU preference is not a "fallback".
+        var res = EpResolver.Resolve(EpPreference.Auto, new[] { EpDeviceInfo.Cpu });
+        Assert.Equal(EpKind.Cpu, res.Device.Kind);
+        Assert.False(res.FellBackToCpu);
+    }
+
+    [Theory]
+    [InlineData(EpKind.Cuda)]
+    [InlineData(EpKind.OpenVINO)]
+    [InlineData(EpKind.VitisAI)]
+    public void All_NonCpu_Kinds_Fall_Back_When_Absent(EpKind kind)
+    {
+        var res = EpResolver.Resolve(new EpPreference(kind, AllowFallbackToCpu: true), new[] { EpDeviceInfo.Cpu });
+        Assert.Equal(EpKind.Cpu, res.Device.Kind);
+        Assert.True(res.FellBackToCpu);
+    }
+
+    [Fact]
+    public void Selects_Requested_Device_Among_Multiple_NonCpu()
+    {
+        var npu = new EpDeviceInfo("QNNExecutionProvider", HardwareKind.Npu, EpKind.Qnn, "2.0", "1.0");
+        var devices = new[] { EpDeviceInfo.Cpu, Dml, npu };
+        var res = EpResolver.Resolve(new EpPreference(EpKind.Qnn), devices);
+        Assert.Equal(EpKind.Qnn, res.Device.Kind);
+        Assert.False(res.FellBackToCpu);
+    }
 }
 
 public class ExecutionProviderSelectorTests
@@ -102,5 +132,41 @@ public class ExecutionProviderSelectorTests
         var selector = new ExecutionProviderSelector(enumerateDevices: () => new[] { EpDeviceInfo.Cpu });
         using var opts = selector.BuildSessionOptions(new EpPreference(EpKind.DirectML), "hash2");
         Assert.True(selector.LastResolution!.FellBackToCpu);
+    }
+
+    private static readonly EpDeviceInfo Dml =
+        new("DmlExecutionProvider", HardwareKind.Gpu, EpKind.DirectML, "1.20", "31.0.101");
+
+    [Fact]
+    public void Selects_Dml_When_Device_Enumerated_Present()
+    {
+        var selector = new ExecutionProviderSelector(enumerateDevices: () => new[] { EpDeviceInfo.Cpu, Dml });
+        using var opts = selector.BuildSessionOptions(new EpPreference(EpKind.DirectML), "hash3");
+        Assert.NotNull(opts);
+        Assert.Equal(EpKind.DirectML, selector.LastResolution!.Device.Kind);
+        Assert.False(selector.LastResolution!.FellBackToCpu);
+    }
+
+    [Fact]
+    public void Computes_Context_Cache_Path_For_NonCpu_Device_Only()
+    {
+        string root = Path.Combine(Path.GetTempPath(), $"epc_{Guid.NewGuid():N}");
+        try
+        {
+            var cache = new CompiledModelCache(root);
+
+            // Present DML device → exercises the `_cache != null && Device.Kind != Cpu` cache-path branch.
+            var dmlSel = new ExecutionProviderSelector(enumerateDevices: () => new[] { EpDeviceInfo.Cpu, Dml }, cache: cache);
+            using var dmlOpts = dmlSel.BuildSessionOptions(new EpPreference(EpKind.DirectML), "h");
+            Assert.NotNull(dmlOpts);
+            Assert.Equal(EpKind.DirectML, dmlSel.LastResolution!.Device.Kind);
+
+            // CPU resolution → cache branch is skipped (no throw, CPU options).
+            var cpuSel = new ExecutionProviderSelector(enumerateDevices: () => new[] { EpDeviceInfo.Cpu }, cache: cache);
+            using var cpuOpts = cpuSel.BuildSessionOptions(EpPreference.Auto, "h");
+            Assert.NotNull(cpuOpts);
+            Assert.Equal(EpKind.Cpu, cpuSel.LastResolution!.Device.Kind);
+        }
+        finally { if (Directory.Exists(root)) Directory.Delete(root, true); }
     }
 }

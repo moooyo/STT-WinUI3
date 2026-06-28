@@ -21,14 +21,19 @@ public class StreamingTransducerTests
     {
         string? dir = Environment.GetEnvironmentVariable("STT_ZIPFORMER_DIR");
         string? wav = Environment.GetEnvironmentVariable("STT_ZIPFORMER_WAV");
-        Skip.If(string.IsNullOrEmpty(dir) || string.IsNullOrEmpty(wav), "Set STT_ZIPFORMER_DIR and STT_ZIPFORMER_WAV.");
-        Skip.IfNot(KaldiNativeFbankInterop.IsAvailable, "native fbank shim not present.");
+        Skip.If(string.IsNullOrEmpty(dir) || string.IsNullOrEmpty(wav),
+            "Set STT_ZIPFORMER_DIR (folder with encoder/decoder/joiner.onnx + tokens.txt) and STT_ZIPFORMER_WAV " +
+            "(a 16 kHz WAV). Optionally set STT_ZIPFORMER_REF to a sherpa-onnx reference transcript to assert an exact match.");
+        Skip.IfNot(KaldiNativeFbankInterop.IsAvailable, "native fbank shim (kaldi_native_fbank_shim.dll) not present.");
 
         string Enc = Path.Combine(dir!, "encoder.onnx");
         string Dec = Path.Combine(dir!, "decoder.onnx");
         string Joi = Path.Combine(dir!, "joiner.onnx");
         string Tok = Path.Combine(dir!, "tokens.txt");
-        Skip.IfNot(File.Exists(Enc) && File.Exists(Dec) && File.Exists(Joi) && File.Exists(Tok), "model files missing.");
+        Skip.IfNot(File.Exists(Enc), $"missing encoder.onnx in STT_ZIPFORMER_DIR ({dir}).");
+        Skip.IfNot(File.Exists(Dec), $"missing decoder.onnx in STT_ZIPFORMER_DIR ({dir}).");
+        Skip.IfNot(File.Exists(Joi), $"missing joiner.onnx in STT_ZIPFORMER_DIR ({dir}).");
+        Skip.IfNot(File.Exists(Tok), $"missing tokens.txt in STT_ZIPFORMER_DIR ({dir}).");
 
         using var encoder = new InferenceSession(Enc);
         using var decoder = new InferenceSession(Dec);

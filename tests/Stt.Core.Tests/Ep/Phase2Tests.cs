@@ -52,6 +52,39 @@ public class ModelVariantSelectorTests
         Assert.True(ModelVariantSelector.IsProviderSupported(Array.Empty<string>(), EpKind.Cpu));
         Assert.False(ModelVariantSelector.IsProviderSupported(Array.Empty<string>(), EpKind.DirectML));
     }
+
+    [Fact]
+    public void VitisAI_Prefers_Int8_Then_Uint8()
+    {
+        string dir = MakeFolder("model.onnx", "model.int8.onnx");
+        try { Assert.Equal("model.int8.onnx", ModelVariantSelector.SelectVariantFile(dir, "model.onnx", EpKind.VitisAI)); }
+        finally { Directory.Delete(dir, true); }
+    }
+
+    [Fact]
+    public void Npu_Falls_Back_To_Uint8_When_Int8_Absent()
+    {
+        string dir = MakeFolder("model.onnx", "model.uint8.onnx"); // no int8
+        try { Assert.Equal("model.uint8.onnx", ModelVariantSelector.SelectVariantFile(dir, "model.onnx", EpKind.Qnn)); }
+        finally { Directory.Delete(dir, true); }
+    }
+
+    [Fact]
+    public void Cuda_Prefers_Fp16()
+    {
+        string dir = MakeFolder("model.onnx", "model.fp16.onnx");
+        try { Assert.Equal("model.fp16.onnx", ModelVariantSelector.SelectVariantFile(dir, "model.onnx", EpKind.Cuda)); }
+        finally { Directory.Delete(dir, true); }
+    }
+
+    [Fact]
+    public void ProviderSupport_Covers_All_NonCpu_Names()
+    {
+        Assert.True(ModelVariantSelector.IsProviderSupported(new[] { "cuda" }, EpKind.Cuda));
+        Assert.True(ModelVariantSelector.IsProviderSupported(new[] { "openvino" }, EpKind.OpenVINO));
+        Assert.True(ModelVariantSelector.IsProviderSupported(new[] { "vitisai" }, EpKind.VitisAI));
+        Assert.False(ModelVariantSelector.IsProviderSupported(new[] { "cuda" }, EpKind.VitisAI));
+    }
 }
 
 public class OsCapabilitiesTests
@@ -63,6 +96,42 @@ public class OsCapabilitiesTests
         Assert.True(OsCapabilities.MeetsBuild(27000, OsCapabilities.Build24H2));
         Assert.False(OsCapabilities.MeetsBuild(22631, OsCapabilities.Build24H2)); // Win11 23H2 < 24H2
         Assert.True(OsCapabilities.MeetsBuild(17763, OsCapabilities.Build1809));
+    }
+
+    [Fact]
+    public void Npu_Floor_Is_Exactly_26100()
+    {
+        // The NPU runtime gate (Task 3.1) hinges on the 24H2 boundary; pin it exactly.
+        Assert.False(OsCapabilities.MeetsBuild(26099, OsCapabilities.Build24H2)); // one below → DML/CPU only
+        Assert.True(OsCapabilities.MeetsBuild(26100, OsCapabilities.Build24H2));  // floor
+        Assert.True(OsCapabilities.MeetsBuild(26101, OsCapabilities.Build24H2));  // above
+    }
+
+    [Fact]
+    public void Documented_Build_Floors_Are_Stable()
+    {
+        Assert.Equal(26100, OsCapabilities.Build24H2);
+        Assert.Equal(17763, OsCapabilities.Build1809);
+    }
+}
+
+public class SessionOptionsBuilderTests
+{
+    [Fact]
+    public void IntraOpThreads_Override_Is_Applied()
+    {
+        using var opts = SessionOptionsBuilder.Build(new EpResolution(EpDeviceInfo.Cpu, false), intraOpThreads: 4);
+        Assert.Equal(4, opts.IntraOpNumThreads);
+    }
+
+    [Fact]
+    public void CompileCachePath_Wiring_Does_Not_Throw()
+    {
+        // EPContext config entries are set defensively (try/caught across ORT versions); the headless
+        // guarantee is "usable options, no throw".
+        string ctx = Path.Combine(Path.GetTempPath(), $"ctx_{Guid.NewGuid():N}_ctx.onnx");
+        using var opts = SessionOptionsBuilder.Build(new EpResolution(EpDeviceInfo.Cpu, false), 0, ctx);
+        Assert.NotNull(opts);
     }
 }
 

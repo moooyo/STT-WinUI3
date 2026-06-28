@@ -27,6 +27,19 @@ public sealed class ModelItemViewModel
         }
     }
 
+    /// <summary>Capability badges as discrete chips for the Model Manager list.</summary>
+    public IReadOnlyList<string> BadgeList
+    {
+        get
+        {
+            var b = new List<string>();
+            if (Streaming) b.Add("streaming");
+            if (Offline) b.Add("offline");
+            if (Multilingual) b.Add("multilingual");
+            return b;
+        }
+    }
+
     public static ModelItemViewModel From(ModelManifest m) => new()
     {
         Id = m.Id,
@@ -50,6 +63,8 @@ public partial class ModelManagerViewModel : ObservableObject
     public ObservableCollection<ModelItemViewModel> Models { get; } = new();
 
     [ObservableProperty] private string _status = string.Empty;
+    [ObservableProperty] private bool _isError;
+    [ObservableProperty] private bool _hasModels;
 
     public ModelManagerViewModel(IModelRegistry registry)
     {
@@ -62,6 +77,7 @@ public partial class ModelManagerViewModel : ObservableObject
         Models.Clear();
         foreach (var m in _registry.List())
             Models.Add(ModelItemViewModel.From(m));
+        HasModels = Models.Count > 0;
     }
 
     /// <summary>Import a sideloaded model folder (called from the page after a FolderPicker).</summary>
@@ -70,11 +86,13 @@ public partial class ModelManagerViewModel : ObservableObject
         try
         {
             var m = _registry.ImportFromFolder(folderPath);
-            Status = $"Imported '{m.DisplayName}' ({m.Family}).";
+            IsError = false;
+            Status = $"Imported '{m.DisplayName}' ({m.Family}). Validation passed.";
             Refresh();
         }
         catch (Exception ex)
         {
+            IsError = true;
             Status = $"Import failed: {ex.Message}";
         }
     }

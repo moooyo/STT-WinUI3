@@ -15,6 +15,11 @@ public sealed partial class ModelManagerPage : Page
         InitializeComponent();
     }
 
+    // x:Bind static helpers for the validation-result InfoBar.
+    public static bool IsNonEmpty(string? value) => !string.IsNullOrWhiteSpace(value);
+    public static InfoBarSeverity SeverityFor(bool isError) =>
+        isError ? InfoBarSeverity.Error : InfoBarSeverity.Success;
+
     private async void Import_Click(object sender, RoutedEventArgs e)
     {
         var picker = new FolderPicker();
@@ -28,9 +33,22 @@ public sealed partial class ModelManagerPage : Page
             ViewModel.Import(folder.Path);
     }
 
-    private void Remove_Click(object sender, RoutedEventArgs e)
+    private async void Remove_Click(object sender, RoutedEventArgs e)
     {
-        if (sender is Button { Tag: string id })
+        if (sender is not Button { Tag: string id }) return;
+
+        // Removing deletes the model folder from disk — confirm first (destructive action).
+        var dialog = new ContentDialog
+        {
+            Title = "Remove model?",
+            Content = $"“{id}” will be deleted from disk. This cannot be undone.",
+            PrimaryButtonText = "Remove",
+            CloseButtonText = "Cancel",
+            DefaultButton = ContentDialogButton.Close,
+            XamlRoot = XamlRoot,
+        };
+
+        if (await dialog.ShowAsync() == ContentDialogResult.Primary)
             ViewModel.RemoveCommand.Execute(id);
     }
 }
