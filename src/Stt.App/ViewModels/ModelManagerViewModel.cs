@@ -11,6 +11,13 @@ public sealed class ModelItemViewModel
     public required string Id { get; init; }
     public required string DisplayName { get; init; }
     public required string Family { get; init; }
+
+    /// <summary>Feature family letter (A/B/C/D) — the acoustic front-end the engine will use.</summary>
+    public required string FeatureFamily { get; init; }
+
+    /// <summary>Friendly model kind shown in the list, e.g. "Whisper · family C".</summary>
+    public required string Kind { get; init; }
+
     public bool Streaming { get; init; }
     public bool Offline { get; init; }
     public bool Multilingual { get; init; }
@@ -27,12 +34,13 @@ public sealed class ModelItemViewModel
         }
     }
 
-    /// <summary>Capability badges as discrete chips for the Model Manager list.</summary>
+    /// <summary>Capability badges as discrete chips for the Model Manager list (feature family first).</summary>
     public IReadOnlyList<string> BadgeList
     {
         get
         {
             var b = new List<string>();
+            if (!string.IsNullOrEmpty(FeatureFamily)) b.Add(FeatureFamily);
             if (Streaming) b.Add("streaming");
             if (Offline) b.Add("offline");
             if (Multilingual) b.Add("multilingual");
@@ -45,10 +53,37 @@ public sealed class ModelItemViewModel
         Id = m.Id,
         DisplayName = string.IsNullOrEmpty(m.DisplayName) ? m.Id : m.DisplayName,
         Family = m.Family,
+        FeatureFamily = FeatureFamilyLetter(m.Feature.Family),
+        Kind = FriendlyKind(m.Family, m.Feature.Family),
         Streaming = m.Capabilities.StreamingCapable,
         Offline = m.Capabilities.OfflineCapable,
         Multilingual = m.Capabilities.Multilingual,
     };
+
+    private static string FeatureFamilyLetter(string featFamily) => featFamily switch
+    {
+        "KaldiFbankPovey" => "A",
+        "KaldiFbankLfrCmvn" => "B",
+        "WhisperLogMel" => "C",
+        "NemoMel" => "D",
+        _ => "",
+    };
+
+    private static string FriendlyKind(string family, string featFamily)
+    {
+        string fam = family.ToLowerInvariant() switch
+        {
+            "whisper" => "Whisper",
+            "nemo" => "NeMo",
+            "sense_voice" => "SenseVoice",
+            "paraformer" => "Paraformer",
+            "transducer" => "Zipformer/transducer",
+            "ctc" => "CTC",
+            _ => string.IsNullOrEmpty(family) ? "model" : family,
+        };
+        string letter = FeatureFamilyLetter(featFamily);
+        return letter.Length > 0 ? $"{fam} · family {letter}" : fam;
+    }
 }
 
 /// <summary>

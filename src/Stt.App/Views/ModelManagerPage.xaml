@@ -53,7 +53,7 @@
                                 </Grid.ColumnDefinitions>
                                 <StackPanel Grid.Column="0" Spacing="4">
                                     <TextBlock Text="{x:Bind DisplayName}" Style="{StaticResource BodyStrongTextBlockStyle}" />
-                                    <TextBlock Text="{x:Bind Family}" Style="{StaticResource CaptionTextBlockStyle}"
+                                    <TextBlock Text="{x:Bind Kind}" Style="{StaticResource CaptionTextBlockStyle}"
                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                                     <muxc:ItemsRepeater ItemsSource="{x:Bind BadgeList}" Margin="0,2,0,0">
                                         <muxc:ItemsRepeater.Layout>

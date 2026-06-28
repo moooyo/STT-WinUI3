@@ -1,5 +1,8 @@
+using Microsoft.ML.OnnxRuntime;
+using Stt.Abstractions.Features;
 using Stt.Abstractions.Models;
 using Stt.Abstractions.Pipeline;
+using Stt.Core.Features;
 
 namespace Stt.Core.Models;
 
@@ -122,14 +125,47 @@ public sealed class ModelRegistry : IModelRegistry
         if (!condition) throw new ArgumentException(message);
     }
 
-    /// <summary>Infer a tentative manifest from file naming (spec §10.3): encoder/decoder/joiner ⇒ transducer; single model.onnx ⇒ ctc/nar.</summary>
+    /// <summary>
+    /// Infer a tentative manifest from a model folder (spec §10.3). File discovery is glob-based
+    /// (handles sherpa's prefixed names like <c>tiny.en-encoder.onnx</c>): encoder+decoder+joiner ⇒
+    /// transducer; encoder+decoder (no joiner) ⇒ Whisper (Family C); a single graph ⇒ probed via ONNX
+    /// metadata so the feature family is correct (NeMo→D, SenseVoice→B, else CTC→A).
+    /// </summary>
     private static ModelManifest InferManifest(string folder)
     {
-        bool Has(string name) => File.Exists(Path.Combine(folder, name));
-        string? tokens = Has("tokens.txt") ? "tokens.txt" : null;
         string id = Path.GetFileName(folder.TrimEnd(Path.DirectorySeparatorChar));
+        string? Find(string suffix) => Directory.GetFiles(folder, "*" + suffix)
+            .Select(Path.GetFileName).Where(n => n is not null && !n.Contains(".int8.")).FirstOrDefault();
+        string? tokens = Find("tokens.txt");
 
-        if (Has("encoder.onnx") && Has("decoder.onnx") && Has("joiner.onnx"))
+        string? enc = Find("encoder.onnx");
+        string? dec = Find("decoder.onnx");
+        string? joi = Find("joiner.onnx");
+
+        // Whisper (Family C): encoder + decoder, NO joiner.
+        if (enc is not null && dec is not null && joi is null)
+        {
+            ModelProbe? probe = TryProbe(Path.Combine(folder, enc));
+            int nMels = probe?.NMels ?? 80;
+            bool multi = probe is not null && probe.Metadata.TryGetValue("is_multilingual", out var im) && im != "0";
+            return new ModelManifest
+            {
+                Id = id,
+                DisplayName = id,
+                Family = "whisper",
+                DecoderType = "ar",
+                Runtime = new[] { "offline" },
+                Files = new ModelFiles { Encoder = enc, Decoder = dec, Tokens = tokens },
+                Feature = new FeatureSpec { FrontEnd = "whisper", Family = "WhisperLogMel", FeatureDim = nMels },
+                Capabilities = new CapabilityFlags { OfflineCapable = true, Multilingual = multi, NeedsVad = true },
+                Languages = multi ? new[] { "multilingual" } : new[] { "en" },
+                License = "MIT",
+                FolderPath = folder,
+            };
+        }
+
+        // Transducer (Family A): encoder + decoder + joiner.
+        if (enc is not null && dec is not null && joi is not null)
         {
             return new ModelManifest
             {
@@ -138,35 +174,71 @@ public sealed class ModelRegistry : IModelRegistry
                 Family = "transducer",
                 DecoderType = "transducer",
                 Runtime = new[] { "streaming" },
-                Files = new ModelFiles { Encoder = "encoder.onnx", Decoder = "decoder.onnx", Joiner = "joiner.onnx", Tokens = tokens },
+                Files = new ModelFiles { Encoder = enc, Decoder = dec, Joiner = joi, Tokens = tokens },
                 Feature = new FeatureSpec { FrontEnd = "kaldi_fbank", Family = "KaldiFbankPovey", FeatureDim = 80 },
                 Capabilities = new CapabilityFlags { StreamingCapable = true, OfflineCapable = false, Multilingual = true, NeedsVad = false },
                 FolderPath = folder,
             };
         }
 
-        string? single = FirstExisting(folder, "model.onnx", "model.int8.onnx", "ctc.onnx", "sense-voice.onnx", "sensevoice.onnx");
+        // Single graph: probe ONNX metadata so the feature family is correct (NeMo vs SenseVoice vs CTC).
+        string? single = FirstExisting(folder, "model.onnx", "ctc.onnx", "sense-voice.onnx", "sensevoice.onnx")
+            ?? Find(".onnx");
         if (single is not null)
-        {
-            bool senseVoice = single.Contains("sense", StringComparison.OrdinalIgnoreCase);
-            return new ModelManifest
-            {
-                Id = id,
-                DisplayName = id,
-                Family = senseVoice ? "sense_voice" : "ctc",
-                DecoderType = senseVoice ? "nar" : "ctc",
-                Runtime = new[] { "offline" },
-                Files = new ModelFiles { Model = single, Tokens = tokens },
-                Feature = senseVoice
-                    ? new FeatureSpec { FrontEnd = "kaldi_fbank", Family = "KaldiFbankLfrCmvn", FeatureDim = 560, Lfr = new[] { 7, 6 }, Cmvn = "metadata" }
-                    : new FeatureSpec { FrontEnd = "kaldi_fbank", Family = "KaldiFbankPovey", FeatureDim = 80 },
-                Capabilities = new CapabilityFlags { StreamingCapable = false, OfflineCapable = true, Multilingual = senseVoice, NeedsVad = true, NeedsLfrCmvn = senseVoice },
-                FolderPath = folder,
-            };
-        }
+            return InferSingleGraph(folder, id, single, tokens);
 
         throw new InvalidOperationException(
-            $"Folder '{folder}' has no manifest.json and no recognizable ONNX files (encoder/decoder/joiner or model.onnx).");
+            $"Folder '{folder}' has no manifest.json and no recognizable ONNX files (encoder/decoder[/joiner] or a single model graph).");
+    }
+
+    private static ModelManifest InferSingleGraph(string folder, string id, string single, string? tokens)
+    {
+        ModelProbe? probe = TryProbe(Path.Combine(folder, single));
+        AsrFeatureFamily fam = probe is not null ? FeatureFamilyDetector.Detect(probe) : AsrFeatureFamily.Auto;
+        int dim = probe?.FeatureDim ?? 0;
+
+        // Name-based fallback when the metadata can't classify (unreadable graph / ambiguous export):
+        // a "sense"-named single graph is SenseVoice (Family B).
+        if (fam == AsrFeatureFamily.Auto && single.Contains("sense", StringComparison.OrdinalIgnoreCase))
+            fam = AsrFeatureFamily.KaldiFbankLfrCmvn;
+
+        return fam switch
+        {
+            AsrFeatureFamily.NemoMel => new ModelManifest
+            {
+                Id = id, DisplayName = id, Family = "nemo", DecoderType = "ctc", Runtime = new[] { "offline" },
+                Files = new ModelFiles { Model = single, Tokens = tokens },
+                Feature = new FeatureSpec { FrontEnd = "nemo", Family = "NemoMel", FeatureDim = dim > 0 ? dim : 80 },
+                Capabilities = new CapabilityFlags { OfflineCapable = true, Multilingual = false, NeedsVad = true },
+                FolderPath = folder,
+            },
+            AsrFeatureFamily.KaldiFbankLfrCmvn => new ModelManifest
+            {
+                Id = id, DisplayName = id, Family = "sense_voice", DecoderType = "nar", Runtime = new[] { "offline" },
+                Files = new ModelFiles { Model = single, Tokens = tokens },
+                Feature = new FeatureSpec { FrontEnd = "kaldi_fbank", Family = "KaldiFbankLfrCmvn", FeatureDim = dim > 0 ? dim : 560, Lfr = new[] { 7, 6 }, Cmvn = "metadata" },
+                Capabilities = new CapabilityFlags { OfflineCapable = true, Multilingual = true, NeedsVad = true, NeedsLfrCmvn = true },
+                FolderPath = folder,
+            },
+            _ => new ModelManifest   // KaldiFbankPovey / Auto → plain CTC (Family A)
+            {
+                Id = id, DisplayName = id, Family = "ctc", DecoderType = "ctc", Runtime = new[] { "offline" },
+                Files = new ModelFiles { Model = single, Tokens = tokens },
+                Feature = new FeatureSpec { FrontEnd = "kaldi_fbank", Family = "KaldiFbankPovey", FeatureDim = dim > 0 ? dim : 80 },
+                Capabilities = new CapabilityFlags { OfflineCapable = true, NeedsVad = true },
+                FolderPath = folder,
+            },
+        };
+    }
+
+    private static ModelProbe? TryProbe(string onnxPath)
+    {
+        try
+        {
+            using var session = new InferenceSession(onnxPath);
+            return ModelMetadataReader.FromSession(session);
+        }
+        catch { return null; }   // unreadable / not loadable — fall back to naming heuristics
     }
 
     private static string? FirstExisting(string folder, params string[] names)
