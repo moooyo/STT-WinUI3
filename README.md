@@ -26,7 +26,7 @@ native binaries/models are present).
 
 > The Whisper plugin is the drop-in for the reserved `DecoderType.Ar` family (spec §8.5); its runtime
 > `DecoderCapabilities` are `Offline | Multilingual` (there is no `Ar` capability flag). It is excluded
-> from `Stt.sln` and the core path by design — a [test](tests/Stt.Core.Tests/Abstractions/PluginIsolationTests.cs)
+> from `Stt.slnx` and the core path by design — a [test](tests/Stt.Core.Tests/Abstractions/PluginIsolationTests.cs)
 > enforces that neither `Stt.Core` nor `Stt.Abstractions` references it or onnxruntime-genai.
 
 The WinUI 3 front end (spec §12) follows Fluent Design conventions: Mica backdrop with a custom
@@ -41,7 +41,7 @@ no language picker by design.)
 Layered, one-directional `App → Core/Audio → Abstractions`:
 
 ```
-Stt.sln
+Stt.slnx
 ├─ src/
 │  ├─ Stt.Abstractions   (net10.0)               interfaces + DTOs + enums, zero third-party deps
 │  ├─ Stt.Core           (net10.0)               engine: Audio, Features, Vad, Decoders, Ep, Models, Pipeline

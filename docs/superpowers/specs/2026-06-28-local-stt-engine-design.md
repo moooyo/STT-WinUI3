@@ -57,7 +57,7 @@
 ## 4. 解决方案 / 项目结构
 
 ```
-Stt.sln
+Stt.slnx
 ├─ src/
 │  ├─ Stt.Abstractions      (net8.0)            接口 + DTO + 枚举，零三方依赖
 │  ├─ Stt.Core              (net8.0)            引擎；依赖 ORT/Channels；不引用 Microsoft.UI.*

@@ -1,0 +1,29 @@
+<Solution>
+  <Configurations>
+    <Platform Name="Any CPU" />
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Folder Name="/src/">
+    <Project Path="src/Stt.Abstractions/Stt.Abstractions.csproj">
+      <Platform Project="x64" />
+    </Project>
+    <Project Path="src/Stt.App/Stt.App.csproj">
+      <Platform Project="x64" />
+    </Project>
+    <Project Path="src/Stt.Audio.Windows/Stt.Audio.Windows.csproj">
+      <Platform Project="x64" />
+    </Project>
+    <Project Path="src/Stt.Core/Stt.Core.csproj">
+      <Platform Project="x64" />
+    </Project>
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Stt.Core.Tests/Stt.Core.Tests.csproj">
+      <Platform Project="x64" />
+    </Project>
+    <Project Path="tests/Stt.Pipeline.Tests/Stt.Pipeline.Tests.csproj">
+      <Platform Project="x64" />
+    </Project>
+  </Folder>
+</Solution>

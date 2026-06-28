@@ -7,7 +7,7 @@
     <!--
       Optional, NOT in the v1 core pipeline (spec §8.5). Whisper-AR via onnxruntime-genai carries
       its own ORT/EP and does not inherit the unified Windows ML EP selection; it is a reserved
-      drop-in for the `Ar` decoder capability. Kept out of Stt.sln's default build path.
+      drop-in for the `Ar` decoder capability. Kept out of Stt.slnx's default build path.
     -->
   </PropertyGroup>
 
