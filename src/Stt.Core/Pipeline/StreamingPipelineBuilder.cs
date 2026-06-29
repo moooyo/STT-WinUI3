@@ -47,6 +47,11 @@ public static class StreamingPipelineBuilder
         string joiPath = Path3(manifest.Files.Joiner, "joiner");
         string tokPath = Path3(manifest.Files.Tokens, "tokens");
 
+        // Pick the quantization variant matching the EP (fp16 for DirectML/CUDA, int8 for NPU); base file otherwise.
+        encPath = ModelVariantSelector.SelectVariantFile(manifest.FolderPath, encPath, epPreference.Kind);
+        decPath = ModelVariantSelector.SelectVariantFile(manifest.FolderPath, decPath, epPreference.Kind);
+        joiPath = ModelVariantSelector.SelectVariantFile(manifest.FolderPath, joiPath, epPreference.Kind);
+
         string hash = $"{manifest.Id}-{new FileInfo(encPath).Length}";
 
         // Build the three graphs on the selected EP; if EP session creation fails (e.g. DirectML
@@ -55,12 +60,15 @@ public static class StreamingPipelineBuilder
         try
         {
             SessionOptions opts = epSelector.BuildSessionOptions(epPreference, hash);
+            // Pin batch (and chunk) so DirectML doesn't pay the ~5× dynamic-axis tax (spec §9).
+            SessionOptionsBuilder.ApplyFixedShapes(opts, new Dictionary<string, int> { ["N"] = 1 });
             encoder = new InferenceSession(encPath, opts);
             decoder = new InferenceSession(decPath, opts);
             joiner = new InferenceSession(joiPath, opts);
         }
         catch when (epPreference.Kind != EpKind.Cpu && epPreference.AllowFallbackToCpu)
         {
+            epSelector.InvalidateCompiledModel(hash);   // stale EPContext graph → recompile/CPU
             SessionOptions cpu = epSelector.BuildSessionOptions(new EpPreference(EpKind.Cpu), hash);
             encoder = new InferenceSession(encPath, cpu);
             decoder = new InferenceSession(decPath, cpu);

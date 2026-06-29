@@ -43,4 +43,11 @@ public sealed class ExecutionProviderSelector : IExecutionProviderSelector
 
         return SessionOptionsBuilder.Build(resolution, _intraOpThreads, cachePath);
     }
+
+    public void InvalidateCompiledModel(string modelHash)
+    {
+        EpResolution? r = LastResolution;
+        if (_cache is null || r is null || r.Device.Kind == EpKind.Cpu) return;
+        _cache.Invalidate(_cache.ContextPath(modelHash, r.Device.EpName, r.Device.EpVersion, r.Device.Driver));
+    }
 }

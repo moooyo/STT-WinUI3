@@ -89,6 +89,10 @@ public static class OfflinePipelineBuilder
         string tokensPath = Path.Combine(folder, manifest.Files.Tokens
             ?? throw new InvalidOperationException("Whisper model requires a tokens file."));
 
+        // Match the EP's quantization variant (fp16 for DirectML/CUDA, int8 for NPU) when present.
+        encPath = ModelVariantSelector.SelectVariantFile(folder, encPath, epPreference.Kind);
+        decPath = ModelVariantSelector.SelectVariantFile(folder, decPath, epPreference.Kind);
+
         var encoder = OpenWithFallback(epSelector, epPreference, encPath, ComputeShortHash(encPath));
         var decoder = OpenWithFallback(epSelector, epPreference, decPath, ComputeShortHash(decPath));
 
@@ -165,9 +169,17 @@ public static class OfflinePipelineBuilder
     private static InferenceSession OpenWithFallback(
         IExecutionProviderSelector epSelector, EpPreference pref, string modelPath, string hash)
     {
-        try { return new InferenceSession(modelPath, epSelector.BuildSessionOptions(pref, hash)); }
+        try
+        {
+            SessionOptions opts = epSelector.BuildSessionOptions(pref, hash);
+            // Pin batch so DirectML/NPU avoid the ~5× dynamic-axis penalty (spec §9); time stays
+            // dynamic for the offline NAR path, fixed (3000) for Whisper.
+            SessionOptionsBuilder.ApplyFixedShapes(opts, new Dictionary<string, int> { ["N"] = 1 });
+            return new InferenceSession(modelPath, opts);
+        }
         catch when (pref.Kind != EpKind.Cpu && pref.AllowFallbackToCpu)
         {
+            epSelector.InvalidateCompiledModel(hash);   // stale EPContext graph → recompile/CPU
             return new InferenceSession(modelPath, epSelector.BuildSessionOptions(new EpPreference(EpKind.Cpu), hash));
         }
     }

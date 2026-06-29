@@ -182,4 +182,24 @@ public class AutoEpTests
         Assert.False(sel.LastResolution!.FellBackToCpu);
         Assert.Equal(EpKind.DirectML, sel.LastResolution.Device.Kind);
     }
+
+    [Fact]
+    public void InvalidateCompiledModel_Deletes_Stale_Ctx_And_Is_Cpu_Safe()
+    {
+        string dir = Path.Combine(Path.GetTempPath(), $"epcache_{Guid.NewGuid():N}");
+        var cache = new CompiledModelCache(dir);
+        var dml = new EpDeviceInfo("DmlExecutionProvider", HardwareKind.Gpu, EpKind.DirectML, "1.0", "drv");
+        var sel = new ExecutionProviderSelector(enumerateDevices: () => new[] { EpDeviceInfo.Cpu, dml }, cache: cache);
+
+        using (sel.BuildSessionOptions(new EpPreference(EpKind.DirectML), "h")) { }
+        string ctx = cache.ContextPath("h", "DmlExecutionProvider", "1.0", "drv");
+        File.WriteAllText(ctx, "stale");
+        sel.InvalidateCompiledModel("h");
+        Assert.False(File.Exists(ctx));
+
+        // CPU resolution has no compiled artifact → invalidation is a harmless no-op.
+        using (sel.BuildSessionOptions(new EpPreference(EpKind.Cpu), "h")) { }
+        sel.InvalidateCompiledModel("h");
+        Directory.Delete(dir, true);
+    }
 }

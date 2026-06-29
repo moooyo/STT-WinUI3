@@ -20,4 +20,11 @@ public interface IExecutionProviderSelector
 
     /// <summary>The device chosen by the most recent <see cref="BuildSessionOptions"/> call.</summary>
     EpResolution? LastResolution { get; }
+
+    /// <summary>
+    /// Drop the stale EPContext compiled graph for the last resolution (called after an EP session
+    /// fails with INVALID_GRAPH so the next attempt recompiles instead of reloading the bad cache).
+    /// No-op when there is no cache. Spec §9, §14.
+    /// </summary>
+    void InvalidateCompiledModel(string modelHash);
 }
