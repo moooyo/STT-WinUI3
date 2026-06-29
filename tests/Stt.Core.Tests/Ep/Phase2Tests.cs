@@ -161,14 +161,15 @@ public class AutoEpTests
     }
 
     [Fact]
-    public void DirectML_Without_Device_Falls_Back_To_Cpu()
+    public void DirectML_Requested_Resolves_Dml_Even_Without_Enumerated_Device()
     {
-        // CPU-only enumeration (headless): a DirectML preference degrades to CPU rather than throwing.
+        // DirectML is built into Windows ML, so a DML preference resolves to DML (the builder appends
+        // it directly); on a non-GPU host the append is swallowed and CPU executes — but no throw.
         var sel = new ExecutionProviderSelector(enumerateDevices: () => new[] { EpDeviceInfo.Cpu });
         using var opts = sel.BuildSessionOptions(new EpPreference(EpKind.DirectML), "m-1");
         Assert.NotNull(opts);
-        Assert.True(sel.LastResolution!.FellBackToCpu);
-        Assert.Equal(EpKind.Cpu, sel.LastResolution.Device.Kind);
+        Assert.False(sel.LastResolution!.FellBackToCpu);
+        Assert.Equal(EpKind.DirectML, sel.LastResolution.Device.Kind);
     }
 
     [Fact]

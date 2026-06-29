@@ -26,6 +26,11 @@ public static class EpResolver
         if (match is not null)
             return new EpResolution(match, FellBackToCpu: false);
 
+        // DirectML is always built into Windows ML (DirectML.dll) even when autoEP didn't enumerate a
+        // device, so honor the request with a synthetic DML device — the builder appends it directly.
+        if (pref.Kind == EpKind.DirectML)
+            return new EpResolution(new EpDeviceInfo("DmlExecutionProvider", HardwareKind.Gpu, EpKind.DirectML), FellBackToCpu: false);
+
         if (pref.AllowFallbackToCpu)
             return new EpResolution(cpu, FellBackToCpu: true);
 

@@ -74,4 +74,14 @@
     <ProjectReference Include="..\Stt.Audio.Windows\Stt.Audio.Windows.csproj" />
   </ItemGroup>
 
+  <!-- Deploy the native kaldi-fbank shim next to the app so feature extraction (Families A–D) works.
+       The engine P/Invokes kaldi_native_fbank_shim.dll; without it the worker throws DllNotFound and
+       no transcript appears. Override the path with -p:KnfShimDll=... ; non-fatal if absent. -->
+  <PropertyGroup>
+    <KnfShimDll Condition="'$(KnfShimDll)' == ''">d:\Code\_stt_native\build\Release\kaldi_native_fbank_shim.dll</KnfShimDll>
+  </PropertyGroup>
+  <ItemGroup Condition="Exists('$(KnfShimDll)')">
+    <Content Include="$(KnfShimDll)" Link="kaldi_native_fbank_shim.dll" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

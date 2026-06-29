@@ -142,6 +142,23 @@ public sealed class ModelRegistry : IModelRegistry
         string? dec = Find("decoder.onnx");
         string? joi = Find("joiner.onnx");
 
+        // Qwen3-ASR (community ONNX): encoder + decoder_init + decoder_step + embed_tokens.bin (Family C,
+        // autoregressive LLM). Distinct three-graph layout — detect before the single-decoder Whisper case.
+        string? qInit = Directory.GetFiles(folder, "decoder_init*.onnx").Select(Path.GetFileName).FirstOrDefault();
+        string? qStep = Directory.GetFiles(folder, "decoder_step*.onnx").Select(Path.GetFileName).FirstOrDefault();
+        string? qEnc = Directory.GetFiles(folder, "encoder*.onnx").Select(Path.GetFileName).FirstOrDefault();
+        if (qInit is not null && qStep is not null && qEnc is not null && File.Exists(Path.Combine(folder, "embed_tokens.bin")))
+        {
+            return new ModelManifest
+            {
+                Id = id, DisplayName = id, Family = "qwen", DecoderType = "qwen_ar", Runtime = new[] { "offline" },
+                Files = new ModelFiles { Encoder = qEnc, Decoder = qInit, Joiner = qStep, Tokens = "vocab.json" },
+                Feature = new FeatureSpec { FrontEnd = "whisper", Family = "WhisperLogMel", FeatureDim = 128 },
+                Capabilities = new CapabilityFlags { OfflineCapable = true, Multilingual = true, NeedsVad = true },
+                Languages = new[] { "multilingual" }, License = "Apache-2.0", FolderPath = folder,
+            };
+        }
+
         // Whisper (Family C): encoder + decoder, NO joiner.
         if (enc is not null && dec is not null && joi is null)
         {

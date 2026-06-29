@@ -37,15 +37,20 @@ public static class SessionOptionsBuilder
             TrySetConfig(options, "ep.context_embed_mode", "0");
         }
 
-        // Append the resolved non-CPU EP via ORT's autoEP API. CPU is implicit (no append needed),
-        // and a missing/unappendable device degrades to CPU (caller marks FellBackToCpu). DirectML
-        // requires Win10 1809+; the NPU EPs (QNN/OpenVINO/VitisAI) require Win11 24H2+.
-        if (resolution.Device.Kind != EpKind.Cpu && resolution.Device.Native is OrtEpDevice ep)
+        // Append the resolved non-CPU EP. Prefer the discovered autoEP device; for DirectML (always
+        // built into Windows ML) fall back to the direct DML API so GPU is used even when autoEP
+        // didn't enumerate a device. CPU is implicit; any failure degrades to CPU (FellBackToCpu).
+        if (resolution.Device.Kind != EpKind.Cpu)
         {
             bool gated = resolution.Device.Kind == EpKind.DirectML
                 ? OsCapabilities.SupportsDirectML
                 : OsCapabilities.SupportsNpuEps;
-            if (gated) TryAppendEp(options, ep);
+            if (gated)
+            {
+                if (resolution.Device.Native is OrtEpDevice ep) TryAppendEp(options, ep);
+                else if (resolution.Device.Kind == EpKind.DirectML)
+                    EpDiagnostics.LastFallbackReason = "DirectML EP not registered in Windows ML on this machine — use CUDA (NVIDIA) or run Download; CPU in use";
+            }
         }
 
         return options;
@@ -55,7 +60,7 @@ public static class SessionOptionsBuilder
     private static void TryAppendEp(SessionOptions options, OrtEpDevice ep)
     {
         try { options.AppendExecutionProvider(OrtEnv.Instance(), new[] { ep }, new Dictionary<string, string>()); }
-        catch { /* EP unavailable / native missing — CPU EP remains the executor */ }
+        catch (Exception e) { EpDiagnostics.LastFallbackReason = "append device: " + e.Message; }
     }
 
     private static void TrySetConfig(SessionOptions options, string key, string value)

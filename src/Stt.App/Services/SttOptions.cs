@@ -18,6 +18,9 @@ public sealed class SttOptions
     public float MinTrailingSilenceSeconds { get; set; } = 0.8f;
     public float MaxUtteranceSeconds { get; set; } = 20f;
 
+    /// <summary>Folders of sideloaded models the user imported — re-scanned at startup so imports persist.</summary>
+    public List<string> ImportedModelPaths { get; set; } = new();
+
     private static string FilePath =>
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Stt", "settings.json");
 

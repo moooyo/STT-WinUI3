@@ -65,12 +65,13 @@ public partial class App : Application
         Directory.CreateDirectory(cacheRoot);
 
         services.AddSingleton(uiDispatcher);
-        services.AddSingleton<IModelRegistry>(_ => new ModelRegistry(modelsRoot));
+        var options = SttOptions.Load();
+        services.AddSingleton<IModelRegistry>(_ => new ModelRegistry(modelsRoot, options.ImportedModelPaths));
         services.AddSingleton(_ => new CompiledModelCache(cacheRoot));
         services.AddSingleton<IExecutionProviderSelector>(sp =>
             new ExecutionProviderSelector(cache: sp.GetRequiredService<CompiledModelCache>()));
 
-        services.AddSingleton(_ => SttOptions.Load());
+        services.AddSingleton(options);
         services.AddSingleton<TranscriptionService>();
 
         services.AddTransient<MainViewModel>();

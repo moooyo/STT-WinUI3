@@ -42,6 +42,8 @@ public static class OfflinePipelineBuilder
 
         // Whisper (Family C) is encoder+decoder autoregressive — a different shape from the
         // single-graph NAR/CTC models below.
+        if (manifest.Family.Equals("qwen", StringComparison.OrdinalIgnoreCase))
+            return BuildQwen(manifest, vadModelPath, epSelector, epPreference);
         if (Enum.TryParse<AsrFeatureFamily>(manifest.Feature.Family, true, out var ff)
             && ff == AsrFeatureFamily.WhisperLogMel)
             return BuildWhisper(manifest, vadModelPath, epSelector, epPreference);
@@ -101,6 +103,28 @@ public static class OfflinePipelineBuilder
         var arDecoder = new WhisperArDecoder(encoder, decoder, config, WhisperArDecoder.LoadVocab(tokensPath));
         var vad = new SileroVad(vadModelPath, new VadOptions());
         return new OfflineChain(vad, frontend, arDecoder);
+    }
+
+    /// <summary>
+    /// Qwen3-ASR (Family C, three-graph autoregressive LLM): WhisperMelFrontend(128) + encoder +
+    /// decoder_init/step over <see cref="QwenAsrDecoder"/>. CPU/DirectML only (AR ⇒ not NPU/TensorRT).
+    /// </summary>
+    private static OfflineChain BuildQwen(
+        ModelManifest manifest, string vadModelPath, IExecutionProviderSelector epSelector, EpPreference pref)
+    {
+        string folder = manifest.FolderPath!;
+        string enc = Path.Combine(folder, manifest.Files.Encoder!);
+        string init = Path.Combine(folder, manifest.Files.Decoder!);
+        string step = Path.Combine(folder, manifest.Files.Joiner!);
+        var encoder = OpenWithFallback(epSelector, pref, enc, ComputeShortHash(enc));
+        var initS = OpenWithFallback(epSelector, pref, init, ComputeShortHash(init));
+        var stepS = OpenWithFallback(epSelector, pref, step, ComputeShortHash(step));
+
+        float[] embed = QwenAsrDecoder.LoadEmbedTokens(Path.Combine(folder, "embed_tokens.bin"));
+        var detok = QwenAsrDecoder.LoadDetok(Path.Combine(folder, manifest.Files.Tokens ?? "vocab.json"));
+        var dec = new QwenAsrDecoder(encoder, initS, stepS, embed, 1024, detok);
+        var vad = new SileroVad(vadModelPath, new VadOptions());
+        return new OfflineChain(vad, new WhisperMelFrontend(128), dec);
     }
 
     private static IFeatureFrontend BuildFrontend(ModelManifest manifest, InferenceSession session)
@@ -177,8 +201,9 @@ public static class OfflinePipelineBuilder
             SessionOptionsBuilder.ApplyFixedShapes(opts, new Dictionary<string, int> { ["N"] = 1 });
             return new InferenceSession(modelPath, opts);
         }
-        catch when (pref.Kind != EpKind.Cpu && pref.AllowFallbackToCpu)
+        catch (Exception ex) when (pref.Kind != EpKind.Cpu && pref.AllowFallbackToCpu)
         {
+            EpDiagnostics.LastFallbackReason = $"{pref.Kind}→CPU: {ex.Message}";
             epSelector.InvalidateCompiledModel(hash);   // stale EPContext graph → recompile/CPU
             return new InferenceSession(modelPath, epSelector.BuildSessionOptions(new EpPreference(EpKind.Cpu), hash));
         }

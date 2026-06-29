@@ -31,6 +31,11 @@ public partial class MainViewModel : ObservableObject
     [NotifyCanExecuteChangedFor(nameof(StopCommand))]
     private bool _isRecording;
 
+    /// <summary>True while models are loading (EP/engine compile) so the UI shows a spinner.</summary>
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(StartCommand))]
+    private bool _isLoading;
+
     [ObservableProperty] private bool _isBehind;
     [ObservableProperty] private string _status = "Idle";
 
@@ -49,6 +54,7 @@ public partial class MainViewModel : ObservableObject
         _options = options;
         _service.Partial += OnPartial;
         _service.Final += OnFinal;
+        _service.Error += OnError;
         LoadDevices();
     }
 
@@ -63,7 +69,7 @@ public partial class MainViewModel : ObservableObject
         SelectedDeviceId = string.Empty;
     }
 
-    private bool CanStart() => !IsRecording;
+    private bool CanStart() => !IsRecording && !IsLoading;
     private bool CanStop() => IsRecording;
     private bool CanModify() => HasContent;
 
@@ -73,10 +79,11 @@ public partial class MainViewModel : ObservableObject
         ErrorMessage = string.Empty;
         try
         {
-            Status = "Starting…";
+            IsLoading = true;
+            Status = "Loading model… (first GPU/TensorRT load can take a while)";
             await _service.StartAsync(_options, SelectedDeviceId);
             IsRecording = true;
-            Status = "Listening";
+            Status = $"Listening on {_service.ActiveProvider} — speak a sentence";
         }
         catch (UnauthorizedAccessException)
         {
@@ -88,6 +95,10 @@ public partial class MainViewModel : ObservableObject
         {
             Status = "Idle";
             ErrorMessage = ex.Message;
+        }
+        finally
+        {
+            IsLoading = false;
         }
     }
 
@@ -114,6 +125,12 @@ public partial class MainViewModel : ObservableObject
     {
         PartialText = p.Text;
         IsBehind = _service.DroppedFrames > 0;
+    }
+
+    private void OnError(string message)
+    {
+        ErrorMessage = message;
+        Status = "Error";
     }
 
     private void OnFinal(FinalResult f)

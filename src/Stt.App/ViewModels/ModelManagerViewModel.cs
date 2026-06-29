@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Stt.Abstractions.Models;
+using Stt.App.Services;
 
 namespace Stt.App.ViewModels;
 
@@ -94,6 +95,7 @@ public sealed class ModelItemViewModel
 public partial class ModelManagerViewModel : ObservableObject
 {
     private readonly IModelRegistry _registry;
+    private readonly SttOptions _options;
 
     public ObservableCollection<ModelItemViewModel> Models { get; } = new();
 
@@ -101,9 +103,10 @@ public partial class ModelManagerViewModel : ObservableObject
     [ObservableProperty] private bool _isError;
     [ObservableProperty] private bool _hasModels;
 
-    public ModelManagerViewModel(IModelRegistry registry)
+    public ModelManagerViewModel(IModelRegistry registry, SttOptions options)
     {
         _registry = registry;
+        _options = options;
         Refresh();
     }
 
@@ -121,6 +124,12 @@ public partial class ModelManagerViewModel : ObservableObject
         try
         {
             var m = _registry.ImportFromFolder(folderPath);
+            // Persist the path so the model is re-scanned on next launch (no re-import needed).
+            if (!_options.ImportedModelPaths.Contains(folderPath, StringComparer.OrdinalIgnoreCase))
+            {
+                _options.ImportedModelPaths.Add(folderPath);
+                _options.Save();
+            }
             IsError = false;
             Status = $"Imported '{m.DisplayName}' ({m.Family}). Validation passed.";
             Refresh();
@@ -136,6 +145,10 @@ public partial class ModelManagerViewModel : ObservableObject
     private void Remove(string id)
     {
         _registry.Remove(id);
+        // Forget any imported path whose folder matches this id so it doesn't reappear next launch.
+        _options.ImportedModelPaths.RemoveAll(p =>
+            string.Equals(Path.GetFileName(p.TrimEnd(Path.DirectorySeparatorChar)), id, StringComparison.OrdinalIgnoreCase));
+        _options.Save();
         Refresh();
     }
 }

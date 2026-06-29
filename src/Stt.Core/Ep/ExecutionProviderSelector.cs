@@ -34,12 +34,9 @@ public sealed class ExecutionProviderSelector : IExecutionProviderSelector
         EpResolution resolution = EpResolver.Resolve(pref, devices);
         LastResolution = resolution;
 
+        // EPContext compile-cache disabled: streaming loads 3 graphs sharing one model hash, so a
+        // single ctx path collides ("exists already"). Recompile per session — correct, just not cached.
         string? cachePath = null;
-        if (_cache is not null && resolution.Device.Kind != EpKind.Cpu)
-        {
-            cachePath = _cache.ContextPath(
-                modelHash, resolution.Device.EpName, resolution.Device.EpVersion, resolution.Device.Driver);
-        }
 
         return SessionOptionsBuilder.Build(resolution, _intraOpThreads, cachePath);
     }

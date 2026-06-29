@@ -53,10 +53,19 @@ public class EpResolverTests
     [Fact]
     public void Falls_Back_To_Cpu_When_Requested_Device_Absent()
     {
-        var devices = new[] { EpDeviceInfo.Cpu }; // no DML present
-        var res = EpResolver.Resolve(new EpPreference(EpKind.DirectML, AllowFallbackToCpu: true), devices);
+        var devices = new[] { EpDeviceInfo.Cpu }; // no NPU present
+        var res = EpResolver.Resolve(new EpPreference(EpKind.Qnn, AllowFallbackToCpu: true), devices);
         Assert.Equal(EpKind.Cpu, res.Device.Kind);
         Assert.True(res.FellBackToCpu);
+    }
+
+    [Fact]
+    public void DirectML_Resolves_Even_When_Not_Enumerated()
+    {
+        // DirectML is built into Windows ML, so it's honored without an enumerated device.
+        var res = EpResolver.Resolve(new EpPreference(EpKind.DirectML), new[] { EpDeviceInfo.Cpu });
+        Assert.Equal(EpKind.DirectML, res.Device.Kind);
+        Assert.False(res.FellBackToCpu);
     }
 
     [Fact]
@@ -127,11 +136,13 @@ public class ExecutionProviderSelectorTests
     }
 
     [Fact]
-    public void Falls_Back_To_Cpu_When_Dml_Enumerated_But_Absent()
+    public void Honors_Dml_Even_When_Not_Enumerated()
     {
+        // DirectML is built into Windows ML — requesting it resolves to DML (direct append), not CPU.
         var selector = new ExecutionProviderSelector(enumerateDevices: () => new[] { EpDeviceInfo.Cpu });
         using var opts = selector.BuildSessionOptions(new EpPreference(EpKind.DirectML), "hash2");
-        Assert.True(selector.LastResolution!.FellBackToCpu);
+        Assert.False(selector.LastResolution!.FellBackToCpu);
+        Assert.Equal(EpKind.DirectML, selector.LastResolution.Device.Kind);
     }
 
     private static readonly EpDeviceInfo Dml =

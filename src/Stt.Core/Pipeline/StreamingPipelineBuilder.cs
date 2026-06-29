@@ -66,8 +66,9 @@ public static class StreamingPipelineBuilder
             decoder = new InferenceSession(decPath, opts);
             joiner = new InferenceSession(joiPath, opts);
         }
-        catch when (epPreference.Kind != EpKind.Cpu && epPreference.AllowFallbackToCpu)
+        catch (Exception ex) when (epPreference.Kind != EpKind.Cpu && epPreference.AllowFallbackToCpu)
         {
+            EpDiagnostics.LastFallbackReason = $"{epPreference.Kind}→CPU: {ex.Message}";
             epSelector.InvalidateCompiledModel(hash);   // stale EPContext graph → recompile/CPU
             SessionOptions cpu = epSelector.BuildSessionOptions(new EpPreference(EpKind.Cpu), hash);
             encoder = new InferenceSession(encPath, cpu);

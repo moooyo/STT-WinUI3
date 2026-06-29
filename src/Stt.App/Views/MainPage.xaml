@@ -61,6 +61,14 @@
                 <Button Content="Clear" Command="{x:Bind ViewModel.ClearCommand}"
                         AutomationProperties.AutomationId="ClearButton"
                         ToolTipService.ToolTip="Clear the transcript" />
+                <ProgressRing Width="20" Height="20" Margin="6,0,0,0"
+                              IsActive="{x:Bind ViewModel.IsLoading, Mode=OneWay}"
+                              Visibility="{x:Bind ViewModel.IsLoading, Mode=OneWay, Converter={StaticResource BoolToVis}}"
+                              ToolTipService.ToolTip="Loading model / compiling EP engine…" />
+                <TextBlock VerticalAlignment="Center" Text="Loading model…"
+                           Style="{StaticResource CaptionTextBlockStyle}"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                           Visibility="{x:Bind ViewModel.IsLoading, Mode=OneWay, Converter={StaticResource BoolToVis}}" />
             </StackPanel>
 
             <Border Grid.Column="1" VerticalAlignment="Center" CornerRadius="{ThemeResource ControlCornerRadius}" Padding="8,3"

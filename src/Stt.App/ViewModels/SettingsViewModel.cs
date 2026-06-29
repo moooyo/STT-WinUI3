@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Microsoft.UI.Xaml;
 using Stt.Abstractions.Ep;
 using Stt.Abstractions.Models;
 using Stt.Abstractions.Pipeline;
@@ -21,13 +22,21 @@ public partial class SettingsViewModel : ObservableObject
     public IReadOnlyList<PipelineMode> Modes { get; } =
         new[] { PipelineMode.OnePassOffline, PipelineMode.OnePassStreaming, PipelineMode.TwoPass };
 
-    public IReadOnlyList<EpKind> Providers { get; } =
-        new[] { EpKind.Cpu, EpKind.DirectML };
+    /// <summary>EPs offered to the user: CPU + DirectML always (built into Windows ML), plus any
+    /// vendor EP (TensorRT-RTX→CUDA / OpenVINO / QNN / VitisAI) Windows ML registered for this hardware.</summary>
+    public ObservableCollection<EpKind> Providers { get; } = new();
+
+    /// <summary>EPs Windows ML actually discovered on this machine (distinct, hardware-class tagged).</summary>
+    public string DetectedProviders => "Detected: " + string.Join(", ",
+        Stt.Core.Ep.OrtEpEnumerator.Enumerate().Select(d => $"{d.Kind}/{d.Hardware}").Distinct());
 
     public ObservableCollection<ModelItemViewModel> OfflineModels { get; } = new();
     public ObservableCollection<ModelItemViewModel> StreamingModels { get; } = new();
 
-    [ObservableProperty] private PipelineMode _mode;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(FirstPassVisibility))]
+    [NotifyPropertyChangedFor(nameof(SecondPassVisibility))]
+    private PipelineMode _mode;
     [ObservableProperty] private EpKind _ep;
     [ObservableProperty] private string? _secondPassModelId;
     [ObservableProperty] private string? _firstPassModelId;
@@ -39,6 +48,7 @@ public partial class SettingsViewModel : ObservableObject
     [ObservableProperty] private float _minTrailingSilenceSeconds;
     [ObservableProperty] private float _maxUtteranceSeconds;
     [ObservableProperty] private string _status = string.Empty;
+    [ObservableProperty] private string _driverStatus = "CPU + DirectML built in. Click Download to add vendor EPs (NVIDIA→CUDA).";
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(OfflineModelDescription))]
@@ -62,12 +72,25 @@ public partial class SettingsViewModel : ObservableObject
     public string VadModelDescription =>
         string.IsNullOrEmpty(VadModelPath) ? "No model selected." : VadModelPath;
 
+    /// <summary>First-pass (streaming) picker is only relevant when streaming is in the pipeline.</summary>
+    public Visibility FirstPassVisibility =>
+        Mode is PipelineMode.OnePassStreaming or PipelineMode.TwoPass ? Visibility.Visible : Visibility.Collapsed;
+
+    /// <summary>Second-pass (offline) picker is only relevant for one-pass-offline or two-pass.</summary>
+    public Visibility SecondPassVisibility =>
+        Mode is PipelineMode.OnePassOffline or PipelineMode.TwoPass ? Visibility.Visible : Visibility.Collapsed;
+
     public SettingsViewModel(IModelRegistry registry, SttOptions options)
     {
         _registry = registry;
         _options = options;
 
+        // Dynamic EP list: CPU + DirectML (always built into Windows ML) + any vendor EP this hardware
+        // surfaced (NVIDIA→TensorRT-RTX(CUDA), Intel→OpenVINO, Qualcomm→QNN, AMD→VitisAI). No phantom options.
+        RebuildProviders();
+
         _mode = options.Mode;
+        if (!Providers.Contains(options.Ep)) options.Ep = EpKind.Cpu;
         _ep = options.Ep;
         _secondPassModelId = options.SecondPassModelId;
         _firstPassModelId = options.FirstPassModelId;
@@ -94,6 +117,46 @@ public partial class SettingsViewModel : ObservableObject
 
     /// <summary>Set the VAD model path (called from the page after a FileOpenPicker).</summary>
     public void SetVadModelPath(string path) => VadModelPath = path;
+
+    private void RebuildProviders()
+    {
+        // Add only — never Clear: clearing the bound collection forces the ComboBox SelectedItem to
+        // null and crashes the TwoWay x:Bind to the non-nullable EpKind. EPs only grow, so additive.
+        if (!Providers.Contains(EpKind.Cpu)) Providers.Add(EpKind.Cpu);
+        if (!Providers.Contains(EpKind.DirectML)) Providers.Add(EpKind.DirectML);
+        foreach (var k in Stt.Core.Ep.OrtEpEnumerator.Enumerate().Select(d => d.Kind))
+            if (!Providers.Contains(k)) Providers.Add(k);
+    }
+
+    /// <summary>
+    /// Download + register the certified vendor EP drivers for this hardware via Windows ML
+    /// (NVIDIA TensorRT-RTX → CUDA, Intel OpenVINO, etc.), then refresh the picker. First run may
+    /// fetch a few hundred MB; needs Win11 24H2+ and a network. CPU + DirectML work regardless.
+    /// </summary>
+    [RelayCommand]
+    private async Task DownloadDrivers()
+    {
+        DriverStatus = "Downloading + registering execution-provider drivers…";
+        try
+        {
+            var catalog = Microsoft.Windows.AI.MachineLearning.ExecutionProviderCatalog.GetDefault();
+            var names = new List<string>();
+            foreach (var ep in catalog.FindAllProviders())   // ALL providers incl. preview NVIDIA TRT-RTX, not just certified
+            {
+                try { await ep.EnsureReadyAsync(); ep.TryRegister(); names.Add(ep.Name); }
+                catch { /* one EP failed to fetch/register — keep the rest */ }
+            }
+            RebuildProviders();
+            OnPropertyChanged(nameof(DetectedProviders));
+            DriverStatus = names.Count > 0
+                ? "Registered EPs: " + string.Join(", ", names)
+                : "No vendor EPs available; CPU + DirectML in use.";
+        }
+        catch (Exception ex)
+        {
+            DriverStatus = "Driver download failed (CPU + DirectML still available): " + ex.GetType().Name + " — " + ex.Message;
+        }
+    }
 
     [RelayCommand]
     private void Save()

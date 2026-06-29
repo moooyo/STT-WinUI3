@@ -76,6 +76,9 @@ public sealed class SttPipeline : ISttPipeline
     public event Action<PartialResult>? Partial;
     public event Action<FinalResult>? Final;
 
+    /// <summary>Surfaces a worker-thread failure (missing shim, bad model, mic error) to the UI.</summary>
+    public event Action<string>? Error;
+
     private void ValidateComponents()
     {
         switch (Config.Mode)
@@ -179,6 +182,7 @@ public sealed class SttPipeline : ISttPipeline
                 await OnSegmentAsync(seg, ct).ConfigureAwait(false);
         }
         catch (OperationCanceledException) { }
+        catch (Exception ex) { EmitError($"First pass failed: {ex.Message}"); }
         finally
         {
             _segments?.Writer.TryComplete();
@@ -228,6 +232,7 @@ public sealed class SttPipeline : ISttPipeline
             }
         }
         catch (OperationCanceledException) { }
+        catch (Exception ex) { EmitError($"Offline decode failed: {ex.Message}"); }
     }
 
     private void EmitPartial(int id, string text)
@@ -241,6 +246,8 @@ public sealed class SttPipeline : ISttPipeline
 
     private void EmitFinal(int id, string text) =>
         _ui.Enqueue(() => Final?.Invoke(new FinalResult(id, text)));
+
+    private void EmitError(string message) => _ui.Enqueue(() => Error?.Invoke(message));
 
     private void FlushVad()
     {
@@ -266,7 +273,7 @@ public sealed class SttPipeline : ISttPipeline
             if (_firstPass is not null) await _firstPass.ConfigureAwait(false);
             if (_secondPass is not null) await _secondPass.ConfigureAwait(false);
         }
-        catch (OperationCanceledException) { }
+        catch { /* cancellation or a worker fault (e.g. missing native shim) — Stop must still complete */ }
         finally
         {
             _capture.FrameAvailable -= OnFrame;

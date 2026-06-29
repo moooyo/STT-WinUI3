@@ -35,15 +35,16 @@ public static class OrtEpEnumerator
         return devices;
     }
 
-    private static EpKind ClassifyEp(string epName) => epName switch
+    private static EpKind ClassifyEp(string epName)
     {
-        "DmlExecutionProvider" => EpKind.DirectML,
-        "QNNExecutionProvider" => EpKind.Qnn,
-        "OpenVINOExecutionProvider" => EpKind.OpenVINO,
-        "VitisAIExecutionProvider" => EpKind.VitisAI,
-        "CUDAExecutionProvider" or "TensorrtExecutionProvider" or "NvTensorRtRtxExecutionProvider" => EpKind.Cuda,
-        _ => EpKind.Cpu,
-    };
+        string n = epName.ToLowerInvariant();
+        if (n.Contains("dml") || n.Contains("directml")) return EpKind.DirectML;
+        if (n.Contains("qnn")) return EpKind.Qnn;
+        if (n.Contains("openvino")) return EpKind.OpenVINO;
+        if (n.Contains("vitis")) return EpKind.VitisAI;
+        if (n.Contains("tensorrt") || n.Contains("cuda") || n.Contains("nvidia")) return EpKind.Cuda;
+        return EpKind.Cpu;
+    }
 
     private static HardwareKind ClassifyHardware(OrtEpDevice d, EpKind kind)
     {

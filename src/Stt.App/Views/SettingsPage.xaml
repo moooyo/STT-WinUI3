@@ -22,6 +22,7 @@
             </controls:SettingCard>
 
             <controls:SettingCard Header="Offline model (second pass)"
+                                  Visibility="{x:Bind ViewModel.SecondPassVisibility, Mode=OneWay}"
                                   Description="{x:Bind ViewModel.OfflineModelDescription, Mode=OneWay}">
                 <ComboBox MinWidth="280" AutomationProperties.AutomationId="OfflineModelComboBox"
                           ItemsSource="{x:Bind ViewModel.OfflineModels, Mode=OneWay}"
@@ -30,6 +31,7 @@
             </controls:SettingCard>
 
             <controls:SettingCard Header="Streaming model (first pass)"
+                                  Visibility="{x:Bind ViewModel.FirstPassVisibility, Mode=OneWay}"
                                   Description="{x:Bind ViewModel.StreamingModelDescription, Mode=OneWay}">
                 <ComboBox MinWidth="280" AutomationProperties.AutomationId="StreamingModelComboBox"
                           ItemsSource="{x:Bind ViewModel.StreamingModels, Mode=OneWay}"
@@ -37,10 +39,20 @@
                           SelectedValue="{x:Bind ViewModel.FirstPassModelId, Mode=TwoWay}" />
             </controls:SettingCard>
 
-            <controls:SettingCard Header="Execution provider" Description="Where inference runs.">
+            <controls:SettingCard Header="Execution provider"
+                                  Description="{x:Bind ViewModel.DetectedProviders}">
                 <ComboBox MinWidth="240" AutomationProperties.AutomationId="ExecutionProviderComboBox"
                           ItemsSource="{x:Bind ViewModel.Providers}"
                           SelectedItem="{x:Bind ViewModel.Ep, Mode=TwoWay}" />
+            </controls:SettingCard>
+
+            <TextBlock Text="Drivers" Style="{StaticResource BodyStrongTextBlockStyle}" Margin="0,12,0,2" />
+
+            <controls:SettingCard Header="Execution-provider drivers"
+                                  Description="{x:Bind ViewModel.DriverStatus, Mode=OneWay}">
+                <Button Content="Download" Command="{x:Bind ViewModel.DownloadDriversCommand}"
+                        AutomationProperties.AutomationId="DownloadDriversButton"
+                        ToolTipService.ToolTip="Download + register vendor EP drivers for this hardware (NVIDIA→CUDA/TensorRT, Intel→OpenVINO)" />
             </controls:SettingCard>
 
             <TextBlock Text="Audio" Style="{StaticResource BodyStrongTextBlockStyle}" Margin="0,12,0,2" />
