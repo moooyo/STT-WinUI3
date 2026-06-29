@@ -55,6 +55,13 @@
                         ToolTipService.ToolTip="Download + register vendor EP drivers for this hardware (NVIDIA→CUDA/TensorRT, Intel→OpenVINO)" />
             </controls:SettingCard>
 
+            <controls:SettingCard Header="Inference threads"
+                                  Description="ORT intra-op threads (lower = less CPU; spin-wait is off). 2 suits streaming.">
+                <muxc:NumberBox MinWidth="160" AutomationProperties.AutomationId="IntraOpThreadsNumberBox"
+                                Value="{x:Bind ViewModel.IntraOpThreads, Mode=TwoWay}"
+                                SmallChange="1" SpinButtonPlacementMode="Inline" Minimum="1" Maximum="16" />
+            </controls:SettingCard>
+
             <TextBlock Text="Audio" Style="{StaticResource BodyStrongTextBlockStyle}" Margin="0,12,0,2" />
 
             <controls:SettingCard Header="Silero VAD model"

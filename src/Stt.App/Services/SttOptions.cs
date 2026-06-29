@@ -21,6 +21,9 @@ public sealed class SttOptions
     /// <summary>Folders of sideloaded models the user imported — re-scanned at startup so imports persist.</summary>
     public List<string> ImportedModelPaths { get; set; } = new();
 
+    /// <summary>ORT intra-op thread cap (0 = ORT default). Low values cut CPU on the per-frame streaming path.</summary>
+    public int IntraOpThreads { get; set; } = 1;
+
     private static string FilePath =>
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Stt", "settings.json");
 

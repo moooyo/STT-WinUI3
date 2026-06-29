@@ -28,6 +28,12 @@ public static class SessionOptionsBuilder
         if (intraOpThreads > 0)
             options.IntraOpNumThreads = intraOpThreads;
 
+        // Disable thread-pool spin-wait: many tiny per-frame ops (joiner/VAD) otherwise keep cores
+        // busy-spinning between calls, pinning CPU at ~100% for no real work (spec §6).
+        TrySetConfig(options, "session.intra_op.allow_spinning", "0");
+        TrySetConfig(options, "session.inter_op.allow_spinning", "0");
+        TrySetConfig(options, "session.force_spinning_stop", "1");
+
         if (!string.IsNullOrEmpty(compileCachePath))
         {
             // EPContext: cache the EP-compiled graph next to the model (spec §9). Defensive —

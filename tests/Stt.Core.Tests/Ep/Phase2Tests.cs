@@ -36,10 +36,10 @@ public class ModelVariantSelectorTests
     }
 
     [Fact]
-    public void Cpu_Uses_Base_File()
+    public void Cpu_Prefers_Int8_When_Present()
     {
         string dir = MakeFolder("model.onnx", "model.int8.onnx");
-        try { Assert.Equal("model.onnx", ModelVariantSelector.SelectVariantFile(dir, "model.onnx", EpKind.Cpu)); }
+        try { Assert.Equal("model.int8.onnx", ModelVariantSelector.SelectVariantFile(dir, "model.onnx", EpKind.Cpu)); }
         finally { Directory.Delete(dir, true); }
     }
 

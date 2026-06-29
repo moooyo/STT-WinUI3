@@ -80,8 +80,12 @@ public sealed class SileroVad : IVad
     public void AcceptWaveform(ReadOnlySpan<float> window512)
     {
         float prob = RunModel(window512);
+        LastProbability = prob;
         _segmenter.AcceptWindow(prob, window512);
     }
+
+    /// <summary>Latest speech probability — lets the pipeline skip streaming decode during silence.</summary>
+    public float LastProbability { get; private set; }
 
     public bool TryDequeueSegment(out SpeechSegment seg) => _segmenter.TryDequeue(out seg);
 

@@ -25,6 +25,7 @@ public static class ModelVariantSelector
         {
             EpKind.Qnn or EpKind.VitisAI => new[] { "int8", "uint8" },
             EpKind.DirectML or EpKind.Cuda => new[] { "fp16" },
+            EpKind.Cpu => new[] { "int8" },   // CPU: prefer int8 if shipped (~25% faster, lower CPU)
             _ => Array.Empty<string>(),
         };
 

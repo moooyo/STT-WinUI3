@@ -69,7 +69,7 @@ public partial class App : Application
         services.AddSingleton<IModelRegistry>(_ => new ModelRegistry(modelsRoot, options.ImportedModelPaths));
         services.AddSingleton(_ => new CompiledModelCache(cacheRoot));
         services.AddSingleton<IExecutionProviderSelector>(sp =>
-            new ExecutionProviderSelector(cache: sp.GetRequiredService<CompiledModelCache>()));
+            new ExecutionProviderSelector(cache: sp.GetRequiredService<CompiledModelCache>(), intraOpThreads: options.IntraOpThreads));
 
         services.AddSingleton(options);
         services.AddSingleton<TranscriptionService>();

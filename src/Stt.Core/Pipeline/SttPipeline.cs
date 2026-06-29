@@ -166,8 +166,6 @@ public sealed class SttPipeline : ISttPipeline
         {
             await foreach (AudioFrame frame in _audio!.Reader.ReadAllAsync(ct).ConfigureAwait(false))
             {
-                if (streaming) RunStreaming(frame);
-
                 chunker.Push(frame.Span);
                 while (chunker.TryGetWindow(out float[] window))
                 {
@@ -175,6 +173,10 @@ public sealed class SttPipeline : ISttPipeline
                     while (_vad.TryDequeueSegment(out SpeechSegment seg))
                         await OnSegmentAsync(seg, ct).ConfigureAwait(false);
                 }
+
+                // Skip the encoder/joiner on silence — the single biggest avoidable CPU cost in a
+                // real session. Only decode while VAD sees speech (small ramp keeps onsets intact).
+                if (streaming && IsSpeechActive()) RunStreaming(frame);
             }
 
             FlushVad();
@@ -187,6 +189,15 @@ public sealed class SttPipeline : ISttPipeline
         {
             _segments?.Writer.TryComplete();
         }
+    }
+
+    private int _speechHold;
+    /// <summary>Speech gate: stay active a few frames past the last speech window so onsets/tails aren't clipped.</summary>
+    private bool IsSpeechActive()
+    {
+        if (_vad is not SileroVad s) return true;   // non-Silero / tests: don't gate
+        if (s.LastProbability >= 0.4f) { _speechHold = 12; return true; }
+        return _speechHold-- > 0;
     }
 
     private void RunStreaming(AudioFrame frame)

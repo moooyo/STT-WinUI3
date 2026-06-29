@@ -47,6 +47,7 @@ public partial class SettingsViewModel : ObservableObject
 
     [ObservableProperty] private float _minTrailingSilenceSeconds;
     [ObservableProperty] private float _maxUtteranceSeconds;
+    [ObservableProperty] private int _intraOpThreads;
     [ObservableProperty] private string _status = string.Empty;
     [ObservableProperty] private string _driverStatus = "CPU + DirectML built in. Click Download to add vendor EPs (NVIDIA→CUDA).";
 
@@ -97,6 +98,7 @@ public partial class SettingsViewModel : ObservableObject
         _vadModelPath = options.VadModelPath;
         _minTrailingSilenceSeconds = options.MinTrailingSilenceSeconds;
         _maxUtteranceSeconds = options.MaxUtteranceSeconds;
+        _intraOpThreads = options.IntraOpThreads;
 
         RefreshModelLists();
     }
@@ -168,7 +170,8 @@ public partial class SettingsViewModel : ObservableObject
         _options.VadModelPath = VadModelPath;
         _options.MinTrailingSilenceSeconds = MinTrailingSilenceSeconds;
         _options.MaxUtteranceSeconds = MaxUtteranceSeconds;
+        _options.IntraOpThreads = IntraOpThreads;
         _options.Save();
-        Status = "Settings saved.";
+        Status = "Settings saved. Restart capture for thread/EP changes to apply.";
     }
 }
