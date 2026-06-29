@@ -18,31 +18,32 @@ called for the boy and presented him with fifty pieces of …`). The **streaming
 transducer) produces a transcript that is an **exact match** with the sherpa-onnx reference
 (the spec §8.2 "align to sherpa before trusting" gate). GPU/NPU EP foundations and the optional
 Whisper plugin round out Phases 2–3. To run end-to-end you supply the native fbank shim + models
-(spec D7) — see [SETUP](docs/native/SETUP.md). Headless tests (no native/models): **116 passing,
-~15 skipped**; with the shim + Silero VAD + SenseVoice + a streaming Zipformer2 + NeMo + Whisper +
+(spec D7) — see [SETUP](docs/native/SETUP.md). Headless tests (no native/models): **136 passing,
+~14 skipped**; with the shim + Silero VAD + SenseVoice + a streaming Zipformer2 + v1 zh-en + NeMo + Whisper +
 the golden vectors present: **138 passing, 0 skipped** (Core 131 + Pipeline 7) — every integration
-test (fbank vs lhotse, Whisper mel vs openai-whisper, VAD, offline/streaming/NeMo/Whisper
+test (fbank vs lhotse, Whisper mel vs openai-whisper, VAD, offline/streaming/v1/NeMo/Whisper
 transcription) runs and passes.
 
 **Feature families (spec §7).** Implemented front-ends, **all verified end-to-end against real
-models and first-class in the app**: **A** kaldi-fbank Povey — icefall Zipformer2 (streaming, exact
-sherpa match), **B** kaldi-fbank + LFR + CMVN — FunASR SenseVoice (zh/en), **C** Whisper log-mel
+models and first-class in the app**: **A** kaldi-fbank Povey — icefall Zipformer (streaming, **v2** exact
+sherpa match **+ v1** zh-en bilingual), **B** kaldi-fbank + LFR + CMVN — FunASR SenseVoice (zh/en), **C** Whisper log-mel
 80/128 — Whisper-tiny.en (exact transcript; `WhisperArDecoder` = encoder + greedy AR over bare ORT),
 **D** NeMo librosa-mel + per-feature norm — NVIDIA NeMo Conformer-CTC (exact transcript). All four
 extract via the native knf shim. Model import is metadata-driven, so dropping a Whisper or NeMo
 folder into **Models** auto-detects its family and makes it selectable in **Settings**.
 
-**Next steps (not yet done).** Real DirectML/NPU EP wiring (Phase 2/3 are foundations only — the
-"DirectML" EP currently falls back to CPU); a production WhisperArDecoder is in place but multilingual
-Whisper/Qwen large models are untested at scale; CI (GitHub Actions running the headless suite); and
-the older Zipformer **v1** streaming export (different state layout) is not yet supported.
+**Next steps (not yet done).** NPU verification on real Qualcomm/Intel/AMD silicon (the QNN/OpenVINO/VitisAI
+EPs are now wired via the Windows ML catalog and gate to 24H2+, but only DirectML is hardware-verified here);
+CI (GitHub Actions running the headless suite); Whisper large-v3 (128-mel) and Qwen ASR at scale (paths exist,
+gated tests skip until the ONNX is present). DirectML (GPU), Zipformer **v1** streaming, and large multilingual
+Whisper are now implemented.
 
 | Phase | Scope | State |
 |---|---|---|
 | 0 | mic → VAD → kaldi-fbank → SenseVoice (ORT) → text; infra; load validation; UI | ✅ implemented + verified |
-| 1 | streaming Zipformer transducer → two-pass; live partials | ✅ implemented + verified (exact sherpa-onnx alignment) |
-| 2 | DirectML GPU — variant selection, fixed-shape, OS gating; app-side EP wiring | ✅ Core foundations + [docs](docs/native/execution-providers.md) |
-| 3 | NPU (QNN/OpenVINO/VitisAI) gating; optional Whisper-genai plugin | ✅ gating logic + `Stt.Plugins.WhisperGenAi` |
+| 1 | streaming Zipformer transducer (v1 **and** v2) → two-pass; live partials | ✅ implemented + verified (v2 exact sherpa-onnx; v1 zh-en bilingual) |
+| 2 | DirectML GPU — real EP append via Windows ML catalog, variant select, fixed-shape, CPU fallback | ✅ wired + [docs](docs/native/execution-providers.md) |
+| 3 | NPU (QNN/OpenVINO/VitisAI) catalog gating; Whisper 80/128 + Qwen front-end | ✅ wired + gated |
 
 > The Whisper plugin is the drop-in for the reserved `DecoderType.Ar` family (spec §8.5); its runtime
 > `DecoderCapabilities` are `Offline | Multilingual` (there is no `Ar` capability flag). It is excluded

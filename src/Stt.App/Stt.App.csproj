@@ -56,17 +56,16 @@
   </ItemGroup>
 
   <!--
-    Double-load guard (spec §9 / docs/native/execution-providers.md iron rule: never load two
-    onnxruntime.dll in one process). Windows App SDK 2.2 transitively pulls Microsoft.Windows.AI.
-    MachineLearning (WinML), which BUNDLES its own native onnxruntime.dll (ORT 1.24.6) + DirectML.dll
-    at the SAME runtimes/<rid>/native/ path as Microsoft.ML.OnnxRuntime (1.27.0, the engine this app
-    actually uses via Stt.Core). The app never calls Windows ML, so we suppress the WinML package's
-    runtime/native assets: this makes Microsoft.ML.OnnxRuntime the single, deterministic owner of
-    onnxruntime.dll (no version-skew, ~20 MB smaller output) instead of relying on MSBuild's
-    same-path collision tie-break. Re-enable these assets only if the app adopts the WinML EP.
+    Single-ORT for the Windows ML EP path (spec §9 / docs/native/execution-providers.md). DirectML
+    + vendor NPU EPs come from Windows ML's native runtime; the iron rule is one onnxruntime.dll per
+    process. So Windows ML OWNS the native (DirectML.dll + onnxruntime.dll), and the base
+    Microsoft.ML.OnnxRuntime contributes managed bindings only — its native is excluded so the two
+    don't collide at the same runtimes/<rid>/native/ path. ExecutionProviderCatalog registers the
+    certified EPs at startup; OrtEpEnumerator then surfaces DirectML to the engine.
   -->
   <ItemGroup>
-    <PackageReference Include="Microsoft.Windows.AI.MachineLearning" Version="2.1.70" ExcludeAssets="runtime;native" />
+    <PackageReference Include="Microsoft.Windows.AI.MachineLearning" Version="2.1.70" />
+    <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.27.0" ExcludeAssets="native" />
   </ItemGroup>
 
   <ItemGroup>

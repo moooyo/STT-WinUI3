@@ -20,8 +20,8 @@ public sealed class ExecutionProviderSelector : IExecutionProviderSelector
         CompiledModelCache? cache = null,
         int intraOpThreads = 0)
     {
-        // Default enumeration: CPU only (matches the base ORT package).
-        _enumerate = enumerateDevices ?? (() => new[] { EpDeviceInfo.Cpu });
+        // Default enumeration: ORT's autoEP catalog (CPU only until the app registers Windows ML EPs).
+        _enumerate = enumerateDevices ?? OrtEpEnumerator.Enumerate;
         _cache = cache;
         _intraOpThreads = intraOpThreads;
     }

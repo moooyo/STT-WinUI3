@@ -8,8 +8,8 @@ namespace Stt.Core.Features;
 /// via the native knf Whisper computer (Hann window, 25 ms / 10 ms, n_fft=400), then apply
 /// <c>log10</c> and Whisper's global dynamic-range normalize
 /// (<c>log = max(log, log.max() - 8); (log + 4) / 4</c>). Output is row-major <c>[N_FRAMES, nMels]</c>
-/// with <c>nMels</c> = 80 (≤ large-v2) or 128 (large-v3); the Whisper encoder consumes it transposed
-/// to <c>[nMels, N_FRAMES]</c>.
+/// with <c>nMels</c> = 80 (≤ large-v2) / 128 (large-v3) / model-defined (Qwen); the encoder consumes
+/// it transposed to <c>[nMels, N_FRAMES]</c>.
 /// </summary>
 public sealed class WhisperMelFrontend : IFeatureFrontend, IDisposable
 {
@@ -21,8 +21,10 @@ public sealed class WhisperMelFrontend : IFeatureFrontend, IDisposable
 
     public WhisperMelFrontend(int nMels = 80)
     {
-        if (nMels is not (80 or 128))
-            throw new ArgumentException($"Whisper n_mels must be 80 or 128, got {nMels}.", nameof(nMels));
+        // 80 = Whisper ≤ large-v2; 128 = large-v3; other values exist for Qwen/Distil exports. The
+        // dim is metadata-driven (fail loud on a nonsensical value rather than silently guessing 80).
+        if (nMels <= 0 || nMels > 512)
+            throw new ArgumentException($"Whisper/Qwen n_mels must be a positive bin count, got {nMels}.", nameof(nMels));
         _nMels = nMels;
     }
 

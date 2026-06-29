@@ -150,3 +150,36 @@ public class FixedShapeTests
         SessionOptionsBuilder.ApplyFixedShapes(options, new Dictionary<string, int> { ["T"] = 39, ["N"] = 1 });
     }
 }
+
+public class AutoEpTests
+{
+    [Fact]
+    public void Enumerator_Always_Includes_Cpu()
+    {
+        var devices = OrtEpEnumerator.Enumerate();
+        Assert.Contains(devices, d => d.Kind == EpKind.Cpu);
+    }
+
+    [Fact]
+    public void DirectML_Without_Device_Falls_Back_To_Cpu()
+    {
+        // CPU-only enumeration (headless): a DirectML preference degrades to CPU rather than throwing.
+        var sel = new ExecutionProviderSelector(enumerateDevices: () => new[] { EpDeviceInfo.Cpu });
+        using var opts = sel.BuildSessionOptions(new EpPreference(EpKind.DirectML), "m-1");
+        Assert.NotNull(opts);
+        Assert.True(sel.LastResolution!.FellBackToCpu);
+        Assert.Equal(EpKind.Cpu, sel.LastResolution.Device.Kind);
+    }
+
+    [Fact]
+    public void NonCpu_Device_Without_Native_Does_Not_Throw()
+    {
+        // A discovered DirectML device with no backing OrtEpDevice (Native=null) must build clean opts.
+        var dml = new EpDeviceInfo("DmlExecutionProvider", HardwareKind.Gpu, EpKind.DirectML);
+        var sel = new ExecutionProviderSelector(enumerateDevices: () => new[] { EpDeviceInfo.Cpu, dml });
+        using var opts = sel.BuildSessionOptions(new EpPreference(EpKind.DirectML), "m-2");
+        Assert.NotNull(opts);
+        Assert.False(sel.LastResolution!.FellBackToCpu);
+        Assert.Equal(EpKind.DirectML, sel.LastResolution.Device.Kind);
+    }
+}

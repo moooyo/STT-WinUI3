@@ -55,8 +55,7 @@ public static class OfflinePipelineBuilder
             ?? throw new InvalidOperationException("Offline model requires a tokens file."));
 
         string modelHash = ComputeShortHash(modelPath);
-        SessionOptions opts = epSelector.BuildSessionOptions(epPreference, modelHash);
-        var session = new InferenceSession(modelPath, opts);
+        var session = OpenWithFallback(epSelector, epPreference, modelPath, modelHash);
 
         // Build the front-end (Family B requires CMVN from metadata — fail loud if absent).
         IFeatureFrontend frontend = BuildFrontend(manifest, session);
@@ -90,8 +89,8 @@ public static class OfflinePipelineBuilder
         string tokensPath = Path.Combine(folder, manifest.Files.Tokens
             ?? throw new InvalidOperationException("Whisper model requires a tokens file."));
 
-        var encoder = new InferenceSession(encPath, epSelector.BuildSessionOptions(epPreference, ComputeShortHash(encPath)));
-        var decoder = new InferenceSession(decPath, epSelector.BuildSessionOptions(epPreference, ComputeShortHash(decPath)));
+        var encoder = OpenWithFallback(epSelector, epPreference, encPath, ComputeShortHash(encPath));
+        var decoder = OpenWithFallback(epSelector, epPreference, decPath, ComputeShortHash(decPath));
 
         var frontend = new WhisperMelFrontend(manifest.Feature.FeatureDim);
         var config = WhisperConfig.FromMetadata(encoder.ModelMetadata.CustomMetadataMap);
@@ -157,6 +156,20 @@ public static class OfflinePipelineBuilder
     {
         var fi = new FileInfo(path);
         return $"{Path.GetFileNameWithoutExtension(path)}-{fi.Length}";
+    }
+
+    /// <summary>
+    /// Open an ORT session on the selected EP, degrading to CPU if EP session creation fails (spec
+    /// §9, §14) — a DirectML/NPU op rejection must not take the offline path down.
+    /// </summary>
+    private static InferenceSession OpenWithFallback(
+        IExecutionProviderSelector epSelector, EpPreference pref, string modelPath, string hash)
+    {
+        try { return new InferenceSession(modelPath, epSelector.BuildSessionOptions(pref, hash)); }
+        catch when (pref.Kind != EpKind.Cpu && pref.AllowFallbackToCpu)
+        {
+            return new InferenceSession(modelPath, epSelector.BuildSessionOptions(new EpPreference(EpKind.Cpu), hash));
+        }
     }
 
     /// <summary>

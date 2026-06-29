@@ -15,14 +15,21 @@ public class WhisperNemoFrontendTests
     }
 
     [Theory]
-    [InlineData(0)]
-    [InlineData(64)]
-    [InlineData(80)]   // valid value is fine; invalid ones throw
-    public void Whisper_Rejects_NonStandard_NMels(int n)
+    [InlineData(80)]    // Whisper ≤ large-v2
+    [InlineData(128)]   // Whisper large-v3
+    [InlineData(96)]    // a non-standard (e.g. Qwen-style) bin count is metadata-driven, not rejected
+    public void Whisper_Accepts_MetadataDriven_NMels(int n)
     {
-        if (n is 80 or 128) { using var ok = new WhisperMelFrontend(n); return; }
-        Assert.Throws<ArgumentException>(() => new WhisperMelFrontend(n));
+        using var fe = new WhisperMelFrontend(n);
+        Assert.Equal(n, fe.FeatureDim);
     }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    [InlineData(9999)]  // fail loud on nonsensical values rather than silently guessing 80
+    public void Whisper_Rejects_Nonsensical_NMels(int n) =>
+        Assert.Throws<ArgumentException>(() => new WhisperMelFrontend(n));
 
     [Fact]
     public void Nemo_Reports_Family_And_Dim()

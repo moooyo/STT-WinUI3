@@ -146,7 +146,9 @@ public sealed class ModelRegistry : IModelRegistry
         if (enc is not null && dec is not null && joi is null)
         {
             ModelProbe? probe = TryProbe(Path.Combine(folder, enc));
-            int nMels = probe?.NMels ?? 80;
+            // n_mels is the Whisper arbiter: prefer explicit metadata, else the encoder's mel axis
+            // ([N, n_mels, 3000] → FeatureDim), so large-v3 (128) auto-detects instead of forcing 80.
+            int nMels = probe?.NMels ?? (probe is { FeatureDim: > 0 } ? probe.FeatureDim : 80);
             bool multi = probe is not null && probe.Metadata.TryGetValue("is_multilingual", out var im) && im != "0";
             return new ModelManifest
             {

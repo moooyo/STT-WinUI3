@@ -88,4 +88,43 @@ public class EncoderStateFactoryTests
             foreach (var s in states) s.Dispose();
         }
     }
+
+    // Legacy v1 geometry — the streaming bilingual zh-en 2023-02-20 model. Per-stack 7 caches.
+    private static readonly Dictionary<string, string> MetaV1 = new()
+    {
+        ["model_type"] = "zipformer",
+        ["num_encoder_layers"] = "2,4,3,2,4",
+        ["encoder_dims"] = "384,384,384,384,384",
+        ["attention_dims"] = "192,192,192,192,192",
+        ["cnn_module_kernels"] = "31,31,31,31,31",
+        ["left_context_len"] = "64,32,16,8,32",
+        ["T"] = "39",
+        ["decode_chunk_len"] = "32",
+    };
+
+    [Fact]
+    public void V1_Is_Detected_And_Has_7_Caches_Per_Stack()
+    {
+        var geo = ZipformerGeometry.FromMetadata(MetaV1);
+        Assert.Equal(1, geo.Version);
+        var specs = EncoderStateFactory.BuildSpecs(geo);
+        Assert.Equal(5 * 7, specs.Count);                  // 5 stacks × 7 caches, no global states
+        Assert.DoesNotContain(specs, s => s.Name == "embed_states");
+    }
+
+    [Fact]
+    public void V1_Cache_Shapes_Match_Sherpa_Onnx_Inputs()
+    {
+        var specs = EncoderStateFactory.BuildSpecs(ZipformerGeometry.FromMetadata(MetaV1));
+        StateSpec S(string n) => specs.First(s => s.Name == n);
+        // stack 0: L=2, lc=64, enc=384, att=192, kernel-1=30 — verified against encoder.onnx metadata.
+        Assert.Equal(new long[] { 2, 1 }, S("cached_len_0").Shape);
+        Assert.Equal(StateDType.Int64, S("cached_len_0").DType);
+        Assert.Equal(new long[] { 2, 1, 384 }, S("cached_avg_0").Shape);
+        Assert.Equal(new long[] { 2, 64, 1, 192 }, S("cached_key_0").Shape);
+        Assert.Equal(new long[] { 2, 64, 1, 96 }, S("cached_val_0").Shape);
+        Assert.Equal(new long[] { 2, 64, 1, 96 }, S("cached_val2_0").Shape);
+        Assert.Equal(new long[] { 2, 1, 384, 30 }, S("cached_conv1_0").Shape);
+        Assert.Equal(new long[] { 4, 32, 1, 192 }, S("cached_key_1").Shape);  // stack 1: L=4, lc=32
+    }
 }

@@ -48,11 +48,24 @@ public static class StreamingPipelineBuilder
         string tokPath = Path3(manifest.Files.Tokens, "tokens");
 
         string hash = $"{manifest.Id}-{new FileInfo(encPath).Length}";
-        SessionOptions opts = epSelector.BuildSessionOptions(epPreference, hash);
 
-        var encoder = new InferenceSession(encPath, opts);
-        var decoder = new InferenceSession(decPath, opts);
-        var joiner = new InferenceSession(joiPath, opts);
+        // Build the three graphs on the selected EP; if EP session creation fails (e.g. DirectML
+        // rejects an op), retry on CPU so streaming stays available (spec §9, §14).
+        InferenceSession encoder, decoder, joiner;
+        try
+        {
+            SessionOptions opts = epSelector.BuildSessionOptions(epPreference, hash);
+            encoder = new InferenceSession(encPath, opts);
+            decoder = new InferenceSession(decPath, opts);
+            joiner = new InferenceSession(joiPath, opts);
+        }
+        catch when (epPreference.Kind != EpKind.Cpu && epPreference.AllowFallbackToCpu)
+        {
+            SessionOptions cpu = epSelector.BuildSessionOptions(new EpPreference(EpKind.Cpu), hash);
+            encoder = new InferenceSession(encPath, cpu);
+            decoder = new InferenceSession(decPath, cpu);
+            joiner = new InferenceSession(joiPath, cpu);
+        }
 
         var geo = ZipformerGeometry.FromMetadata(ModelMetadataReader.FromSession(encoder).Metadata);
         var session = new OrtStreamingSession(encoder, decoder, joiner, geo);

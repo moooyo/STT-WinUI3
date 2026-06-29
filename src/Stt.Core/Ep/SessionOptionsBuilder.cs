@@ -1,12 +1,14 @@
 using Microsoft.ML.OnnxRuntime;
+using Stt.Abstractions.Ep;
 
 namespace Stt.Core.Ep;
 
 /// <summary>
 /// Creates a configured ORT <see cref="SessionOptions"/> (spec §6: shared, core-limited intra-op
 /// threading to avoid oversubscription; §9: graph optimization; EPContext compile cache wiring).
-/// Phase 0 targets the CPU EP (the base ORT package); the structure is ready for DirectML/NPU EP
-/// append in later phases and in the app's Windows ML selector.
+/// Appends the resolved non-CPU execution provider (DirectML / NPU) through ORT's autoEP API when a
+/// discovered <c>OrtEpDevice</c> is supplied; CPU is implicit and any unappendable device falls back
+/// to CPU. The app populates real devices by registering the Windows ML EP catalog.
 /// </summary>
 public static class SessionOptionsBuilder
 {
@@ -35,9 +37,25 @@ public static class SessionOptionsBuilder
             TrySetConfig(options, "ep.context_embed_mode", "0");
         }
 
-        // Provider append for non-CPU devices is handled by ExecutionProviderSelector (and the
-        // app's Windows ML selector), wrapped in try/catch with CPU fallback. CPU EP is implicit.
+        // Append the resolved non-CPU EP via ORT's autoEP API. CPU is implicit (no append needed),
+        // and a missing/unappendable device degrades to CPU (caller marks FellBackToCpu). DirectML
+        // requires Win10 1809+; the NPU EPs (QNN/OpenVINO/VitisAI) require Win11 24H2+.
+        if (resolution.Device.Kind != EpKind.Cpu && resolution.Device.Native is OrtEpDevice ep)
+        {
+            bool gated = resolution.Device.Kind == EpKind.DirectML
+                ? OsCapabilities.SupportsDirectML
+                : OsCapabilities.SupportsNpuEps;
+            if (gated) TryAppendEp(options, ep);
+        }
+
         return options;
+    }
+
+    /// <summary>Append a single discovered EP device; swallow so an unsupported device falls back to CPU.</summary>
+    private static void TryAppendEp(SessionOptions options, OrtEpDevice ep)
+    {
+        try { options.AppendExecutionProvider(OrtEnv.Instance(), new[] { ep }, new Dictionary<string, string>()); }
+        catch { /* EP unavailable / native missing — CPU EP remains the executor */ }
     }
 
     private static void TrySetConfig(SessionOptions options, string key, string value)

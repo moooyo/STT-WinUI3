@@ -59,4 +59,45 @@ public class StreamingTransducerTests
         else
             Assert.False(string.IsNullOrWhiteSpace(hyp), "expected a non-empty hypothesis.");
     }
+
+    /// <summary>
+    /// Legacy Zipformer v1 (per-stack caches): the bilingual zh-en 2023-02-20 model. Skips unless
+    /// STT_ZIPFORMER_V1_DIR + STT_ZIPFORMER_V1_WAV are set; the same encoder/state path must drive a
+    /// v1 export without v2's query/value/num_heads metadata. Optional STT_ZIPFORMER_V1_REF asserts
+    /// an exact sherpa-onnx match.
+    /// </summary>
+    [SkippableFact]
+    public void V1_Streams_And_Produces_Hypothesis()
+    {
+        string? dir = Environment.GetEnvironmentVariable("STT_ZIPFORMER_V1_DIR");
+        string? wav = Environment.GetEnvironmentVariable("STT_ZIPFORMER_V1_WAV");
+        Skip.If(string.IsNullOrEmpty(dir) || string.IsNullOrEmpty(wav),
+            "Set STT_ZIPFORMER_V1_DIR (legacy zipformer v1 folder) and STT_ZIPFORMER_V1_WAV (16 kHz WAV).");
+        Skip.IfNot(KaldiNativeFbankInterop.IsAvailable, "native fbank shim (kaldi_native_fbank_shim.dll) not present.");
+
+        string Enc = Path.Combine(dir!, "encoder.onnx"), Dec = Path.Combine(dir!, "decoder.onnx");
+        string Joi = Path.Combine(dir!, "joiner.onnx"), Tok = Path.Combine(dir!, "tokens.txt");
+        foreach (var f in new[] { Enc, Dec, Joi, Tok }) Skip.IfNot(File.Exists(f), $"missing {Path.GetFileName(f)} in {dir}.");
+
+        using var encoder = new InferenceSession(Enc);
+        using var decoder = new InferenceSession(Dec);
+        using var joiner = new InferenceSession(Joi);
+
+        var geo = ZipformerGeometry.FromMetadata(ModelMetadataReader.FromSession(encoder).Metadata);
+        Assert.Equal(1, geo.Version);
+        var session = new OrtStreamingSession(encoder, decoder, joiner, geo);
+        using var dec = new TransducerDecoder(session, TokenTable.Load(Tok));
+
+        var audio = WavIo.ReadPcm(wav!);
+        float[] mono = Resampler.ToMono16k(audio.Interleaved, audio.SampleRate, audio.Channels);
+        using var fe = new KaldiFbankFrontend(FbankOptions.FamilyA(80));
+        float[] feats = fe.Extract(mono, out int frames);
+        dec.AcceptFeatures(feats, frames, 80);
+        dec.InputFinished();
+        string hyp = dec.GetResult().Text;
+
+        string? reference = Environment.GetEnvironmentVariable("STT_ZIPFORMER_V1_REF");
+        if (!string.IsNullOrEmpty(reference)) Assert.Equal(reference.Trim(), hyp.Trim());
+        else Assert.False(string.IsNullOrWhiteSpace(hyp), "expected a non-empty hypothesis.");
+    }
 }

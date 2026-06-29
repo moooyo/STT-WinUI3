@@ -32,6 +32,10 @@ public partial class App : Application
         // The UI dispatcher must be captured on the UI thread.
         var uiDispatcher = new DispatcherQueueUiDispatcher(DispatcherQueue.GetForCurrentThread());
 
+        // Register the Windows ML certified EPs (DirectML + vendor NPU) in the background so
+        // OrtEpEnumerator surfaces them; CPU works regardless if this is slow/unavailable (spec §9).
+        _ = RegisterExecutionProvidersAsync();
+
         Host = Microsoft.Extensions.Hosting.Host
             .CreateDefaultBuilder()
             .ConfigureServices(services => ConfigureServices(services, uiDispatcher))
@@ -40,6 +44,16 @@ public partial class App : Application
         _window = new MainWindow();
         MainWindowInstance = _window;
         _window.Activate();
+    }
+
+    private static async Task RegisterExecutionProvidersAsync()
+    {
+        try
+        {
+            await Microsoft.Windows.AI.MachineLearning.ExecutionProviderCatalog
+                .GetDefault().EnsureAndRegisterCertifiedAsync();
+        }
+        catch { /* no catalog / offline / unsupported OS — engine runs on CPU + any built-in DML */ }
     }
 
     private static void ConfigureServices(IServiceCollection services, IUiDispatcher uiDispatcher)
